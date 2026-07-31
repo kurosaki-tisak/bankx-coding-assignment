@@ -1,0 +1,166 @@
+{
+  "accounts": [
+    {
+      "id": 1,
+      "name": "John Doe",
+      "balance": 1000000,
+      "encrytedAccountNumber": "LEBnocvere6HyUj6M1NYWw=="
+    },
+    {
+      "id": 2,
+      "name": "Jane Smith",
+      "balance": 2500000,
+      "encrytedAccountNumber": "G/f0TxSEJ1kDj8WkBb1yoA=="
+    },
+    {
+      "id": 3,
+      "name": "Alice Johnson",
+      "balance": 1500000,
+      "encrytedAccountNumber": "6uOE+EOjlGTlAtHltqNzNQ=="
+    },
+    {
+      "id": 4,
+      "name": "Bob Brown",
+      "balance": 3000000,
+      "encrytedAccountNumber": "UpS7poUrUqjZo8KyWlZ6YQ=="
+    },
+    {
+      "id": 5,
+      "name": "Charlie Davis",
+      "balance": 500000,
+      "encrytedAccountNumber": "yZkSDige7MhPwJunSdb/nQ=="
+    },
+    {
+      "id": 6,
+      "name": "David Evans",
+      "balance": 2000000,
+      "encrytedAccountNumber": "OLcTpiMMxlcHHk0SdmFsZg=="
+    },
+    {
+      "id": 7,
+      "name": "Eve Foster",
+      "balance": 3500000,
+      "encrytedAccountNumber": "CJpsrQmdWJlMFGiULyAB/g=="
+    },
+    {
+      "id": 8,
+      "name": "Frank Green",
+      "balance": 4000000,
+      "encrytedAccountNumber": "KgeD8PmfmbKX3NIfqsb8MA=="
+    },
+    {
+      "id": 9,
+      "name": "Grace Harris",
+      "balance": 4500000,
+      "encrytedAccountNumber": "kXN92i0P03mziHBSNQrBDw=="
+    },
+    {
+      "id": 10,
+      "name": "Henry Jackson",
+      "balance": 600000,
+      "encrytedAccountNumber": "YAV4ECAihWDCYayu6JwnAA=="
+    },
+    {
+      "id": 11,
+      "name": "Ivy King",
+      "balance": 700000,
+      "encrytedAccountNumber": "p9WgDZ1vw/akrYAQdQlUiw=="
+    },
+    {
+      "id": 12,
+      "name": "Jack Lee",
+      "balance": 800000,
+      "encrytedAccountNumber": "BMyGhE3UX6UegvFyChpf9Q=="
+    },
+    {
+      "id": 13,
+      "name": "Karen Martinez",
+      "balance": 900000,
+      "encrytedAccountNumber": "sHVAxdW0HqMN6XUCEHVnBw=="
+    },
+    {
+      "id": 14,
+      "name": "Leo Nelson",
+      "balance": 100000,
+      "encrytedAccountNumber": "AWsgebx88G30wfZrKp03zg=="
+    },
+    {
+      "id": 15,
+      "name": "Mia Owens",
+      "balance": 1100000,
+      "encrytedAccountNumber": "kL7PIZ2XlAiNakxJomFO3Q=="
+    },
+    {
+      "id": 16,
+      "name": "Nina Perez",
+      "balance": 1200000,
+      "encrytedAccountNumber": "WTkO6sibHlT7X2VpdPOa+Q=="
+    },
+    {
+      "id": 17,
+      "name": "Oscar Quinn",
+      "balance": 1300000,
+      "encrytedAccountNumber": "u6M2ldwxVyvdDWnp2EfNIg=="
+    },
+    {
+      "id": 18,
+      "name": "Paul Roberts",
+      "balance": 1400000,
+      "encrytedAccountNumber": "egVS1aO5w1tqwRB/tPkO6g=="
+    },
+    {
+      "id": 19,
+      "name": "Quinn Scott",
+      "balance": 1500000,
+      "encrytedAccountNumber": "DTYJqL/fXwPsNVXZ/V4IGw=="
+    },
+    {
+      "id": 20,
+      "name": "Rachel Taylor",
+      "balance": 1600000,
+      "encrytedAccountNumber": "+FyfWGDEtPlyERKekkNGIA=="
+    },
+    {
+      "id": 21,
+      "name": "Sam Underwood",
+      "balance": 1700000,
+      "encrytedAccountNumber": "8j4f3BgLw3LarnTxHC8yxw=="
+    },
+    {
+      "id": 22,
+      "name": "Tina Vance",
+      "balance": 1800000,
+      "encrytedAccountNumber": "sTPz8wVgEcZTpMalI5MElg=="
+    },
+    {
+      "id": 23,
+      "name": "Uma White",
+      "balance": 1900000,
+      "encrytedAccountNumber": "qgdfto4P8wsGxZqY9k0avw=="
+    },
+    {
+      "id": 24,
+      "name": "Victor Xander",
+      "balance": 2000000,
+      "encrytedAccountNumber": "OYGpwFccaMNk7DEFZuRMLA=="
+    },
+    {
+      "id": 25,
+      "name": "Wendy Young",
+      "balance": 2100000,
+      "encrytedAccountNumber": "KDTaCU9mAPHts5aMD5YCDw=="
+    },
+    {
+      "id": 26,
+      "name": "Xavier Zane",
+      "balance": 2200000,
+      "encrytedAccountNumber": "YTLRwzzjEzvAm2jL4QiIzQ=="
+    },
+    {
+      "id": 27,
+      "name": "Yara Adams",
+      "balance": 2300000,
+      "encrytedAccountNumber": "EJ53oSjFcV1YR+BErubhtw=="
+    }
+  ]
+}

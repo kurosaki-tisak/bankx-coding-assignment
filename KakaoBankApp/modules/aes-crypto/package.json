@@ -1,0 +1,8 @@
+{
+  "name": "aes-crypto",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.ts",
+  "types": "index.ts",
+  "description": "Native AES-128-ECB decryption (iOS CommonCrypto / Android javax.crypto)"
+}
