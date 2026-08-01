@@ -1,13 +1,18 @@
-import { Platform, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { colors, size, spacing, typography } from '@/src/core/theme';
+import type { TabRouteName } from '@/src/features/navigation/data/models/tab';
 import { useTabBarViewModel } from '@/src/features/navigation/presentation/hooks/useTabBarViewModel';
 import { TabBarIcon } from '@/src/features/navigation/presentation/components/TabBarIcon';
-import type { TabRouteName } from '@/src/features/navigation/data/models/tab';
-import { colors, size, spacing, typography } from '@/src/core/theme';
 
 export default function TabLayout() {
   const { tabs } = useTabBarViewModel();
+  const insets = useSafeAreaInsets();
+
+  const bottomInset = Math.max(insets.bottom, size.tabBarMinBottomInset);
+  const tabBarHeight = size.tabBarContentHeight + bottomInset;
 
   const tabByRoute = Object.fromEntries(
     tabs.map((tab) => [tab.route, tab]),
@@ -19,11 +24,11 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.icon.active,
         tabBarInactiveTintColor: colors.icon.default,
+        tabBarHideOnKeyboard: true,
         tabBarLabelStyle: {
           fontSize: typography.size.micro,
           fontWeight: typography.weight.medium,
           marginTop: spacing.xxs,
-          marginBottom: Platform.OS === 'ios' ? 0 : spacing.xs,
         },
         tabBarItemStyle: {
           paddingTop: spacing.xs,
@@ -32,11 +37,9 @@ export default function TabLayout() {
           backgroundColor: colors.surface,
           borderTopColor: colors.border.subtle,
           borderTopWidth: StyleSheet.hairlineWidth,
-          height:
-            Platform.OS === 'ios'
-              ? size.tabBarHeightIos
-              : size.tabBarHeightAndroid,
+          height: tabBarHeight,
           paddingTop: spacing.xs,
+          paddingBottom: bottomInset,
           elevation: 0,
           shadowOpacity: 0,
         },

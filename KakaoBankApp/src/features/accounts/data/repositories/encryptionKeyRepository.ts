@@ -1,42 +1,33 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { Alert } from 'react-native';
 
+import { getFirestoreSecretPath } from '@/src/core/env';
 import { getFirestoreDb } from '@/src/core/firebase';
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
 
 /**
  * Firestore key management — loads AES secret for account-number decryption.
- * Path: EXPO_PUBLIC_FIRESTORE_SECRET_* env vars.
+ * Path from EXPO_PUBLIC_FIRESTORE_SECRET_* with safe defaults for local/dev.
  */
 export async function fetchEncryptionSecretKey(): Promise<string> {
   try {
-    const collectionName = requireEnv('EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION');
-    const documentId = requireEnv('EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT');
-    const fieldName = requireEnv('EXPO_PUBLIC_FIRESTORE_SECRET_FIELD');
+    const { collection, document, field } = getFirestoreSecretPath();
 
     const db = getFirestoreDb();
-    const secretRef = doc(db, collectionName, documentId);
+    const secretRef = doc(db, collection, document);
     const snapshot = await getDoc(secretRef);
 
     if (!snapshot.exists()) {
       throw new Error(
-        `Secret document not found: ${collectionName}/${documentId}`,
+        `Secret document not found: ${collection}/${document}`,
       );
     }
 
     const data = snapshot.data();
-    const secretKey = data?.[fieldName];
+    const secretKey = data?.[field];
 
     if (typeof secretKey !== 'string' || secretKey.length === 0) {
       throw new Error(
-        `Secret field "${fieldName}" is missing or empty on ${collectionName}/${documentId}`,
+        `Secret field "${field}" is missing or empty on ${collection}/${document}`,
       );
     }
 

@@ -141,11 +141,11 @@ export const size = {
   promoMinHeight: 92,
   moreHit: 28,
   actionChipMinWidth: 52,
-  /** Bottom tab bar (KakaoBank home) */
+  /** Bottom tab bar (KakaoBank home) — content only; add safe-area inset at runtime */
   tabIcon: 24,
   tabIconHit: 28,
-  tabBarHeightIos: 84,
-  tabBarHeightAndroid: 64,
+  tabBarContentHeight: 56,
+  tabBarMinBottomInset: 16,
 } as const;
 
 /** KakaoBank home is mostly flat — keep elevation subtle */

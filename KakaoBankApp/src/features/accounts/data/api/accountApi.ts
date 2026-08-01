@@ -1,17 +1,11 @@
 import { Alert } from 'react-native';
 
+import { requireEnv } from '@/src/core/env';
+
 import type {
   AccountApiItem,
   AccountsPageResult,
 } from '../models/account';
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
 
 function isAccountApiItem(value: unknown): value is AccountApiItem {
   if (!value || typeof value !== 'object') {

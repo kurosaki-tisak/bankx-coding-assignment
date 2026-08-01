@@ -1,6 +1,8 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
+import { requireEnv } from '@/src/core/env';
+
 type FirebaseEnvConfig = {
   apiKey: string;
   authDomain: string;
@@ -9,14 +11,6 @@ type FirebaseEnvConfig = {
   messagingSenderId: string;
   appId: string;
 };
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
 
 /**
  * Firebase client config — secrets/config must come from EXPO_PUBLIC_* only.
