@@ -141,6 +141,11 @@ export const size = {
   promoMinHeight: 92,
   moreHit: 28,
   actionChipMinWidth: 52,
+  /** Bottom tab bar (KakaoBank home) */
+  tabIcon: 24,
+  tabIconHit: 28,
+  tabBarHeightIos: 84,
+  tabBarHeightAndroid: 64,
 } as const;
 
 /** KakaoBank home is mostly flat — keep elevation subtle */

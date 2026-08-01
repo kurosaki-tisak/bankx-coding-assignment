@@ -1,38 +1,18 @@
-import { type ColorValue, Platform, Text, View } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 
-import { colors, spacing, typography } from '@/src/theme';
-
-function TabIcon({
-  label,
-  color,
-  showBadge,
-}: {
-  label: string;
-  color: ColorValue;
-  showBadge?: boolean;
-}) {
-  return (
-    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color, fontSize: 18, fontWeight: '600' }}>{label}</Text>
-      {showBadge ? (
-        <View
-          style={{
-            position: 'absolute',
-            top: -2,
-            right: -10,
-            width: 8,
-            height: 8,
-            borderRadius: 999,
-            backgroundColor: colors.notification,
-          }}
-        />
-      ) : null}
-    </View>
-  );
-}
+import { useTabBarViewModel } from '@/src/features/navigation/hooks/useTabBarViewModel';
+import { TabBarIcon } from '@/src/features/navigation/presenters/TabBarIcon';
+import type { TabRouteName } from '@/src/features/navigation/types/tab';
+import { colors, size, spacing, typography } from '@/src/theme';
 
 export default function TabLayout() {
+  const { tabs } = useTabBarViewModel();
+
+  const tabByRoute = Object.fromEntries(
+    tabs.map((tab) => [tab.route, tab]),
+  ) as Record<TabRouteName, (typeof tabs)[number]>;
+
   return (
     <Tabs
       screenOptions={{
@@ -40,54 +20,82 @@ export default function TabLayout() {
         tabBarActiveTintColor: colors.icon.active,
         tabBarInactiveTintColor: colors.icon.default,
         tabBarLabelStyle: {
-          fontSize: typography.size.caption,
+          fontSize: typography.size.micro,
           fontWeight: typography.weight.medium,
+          marginTop: spacing.xxs,
           marginBottom: Platform.OS === 'ios' ? 0 : spacing.xs,
+        },
+        tabBarItemStyle: {
+          paddingTop: spacing.xs,
         },
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border.subtle,
-          height: Platform.OS === 'ios' ? 84 : 64,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          height:
+            Platform.OS === 'ios'
+              ? size.tabBarHeightIos
+              : size.tabBarHeightAndroid,
           paddingTop: spacing.xs,
+          elevation: 0,
+          shadowOpacity: 0,
         },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'หน้าแรก',
-          tabBarIcon: ({ color }) => <TabIcon label="⌂" color={color} />,
+          title: tabByRoute.index.title,
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon
+              name={tabByRoute.index.icon}
+              color={color}
+              focused={focused}
+              showBadge={tabByRoute.index.showBadge}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="benefits"
         options={{
-          title: 'สิทธิประโยชน์',
-          tabBarIcon: ({ color }) => (
-            <TabIcon label="🎁" color={color} showBadge />
+          title: tabByRoute.benefits.title,
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon
+              name={tabByRoute.benefits.icon}
+              color={color}
+              focused={focused}
+              showBadge={tabByRoute.benefits.showBadge}
+            />
           ),
         }}
       />
       <Tabs.Screen
         name="products"
         options={{
-          title: 'ผลิตภัณฑ์',
-          tabBarIcon: ({ color }) => <TabIcon label="▦" color={color} />,
+          title: tabByRoute.products.title,
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon
+              name={tabByRoute.products.icon}
+              color={color}
+              focused={focused}
+              showBadge={tabByRoute.products.showBadge}
+            />
+          ),
         }}
       />
       <Tabs.Screen
         name="more"
         options={{
-          title: 'ทั้งหมด',
-          tabBarIcon: ({ color }) => (
-            <TabIcon label="⋯" color={color} showBadge />
+          title: tabByRoute.more.title,
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon
+              name={tabByRoute.more.icon}
+              color={color}
+              focused={focused}
+              showBadge={tabByRoute.more.showBadge}
+            />
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="two"
-        options={{
-          href: null,
         }}
       />
     </Tabs>
