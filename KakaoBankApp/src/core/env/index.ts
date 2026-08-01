@@ -13,7 +13,11 @@ export function getEnv(name: string): string | undefined {
 export function requireEnv(name: string): string {
   const value = getEnv(name);
   if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
+    throw new Error(
+      `Missing required environment variable: ${name}. ` +
+        `For local runs copy KakaoBankApp/.env.example → .env. ` +
+        `For App Distribution builds set the same key as a GitHub Actions secret.`,
+    );
   }
   return value;
 }

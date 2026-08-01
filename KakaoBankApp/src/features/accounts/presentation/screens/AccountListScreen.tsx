@@ -2,15 +2,12 @@ import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 
 import type { Account } from '../../data/models/account';
+import { USER_DISPLAY_NAME } from '../../data/models/accountConfig';
 import {
   AccountList,
   type AccountSortKey,
 } from '../components/AccountList';
 import { useAccountViewModel } from '../hooks/useAccountViewModel';
-
-function resolveUserName(): string {
-  return process.env.EXPO_PUBLIC_USER_DISPLAY_NAME?.trim() || 'คุณลูกค้า';
-}
 
 /**
  * Accounts screen — wires ViewModel → AccountList (View).
@@ -58,7 +55,7 @@ export default function AccountListScreen() {
       onRetry={refresh}
       onAccountPress={handleAccountPress}
       onTransferPress={handleTransferPress}
-      userName={resolveUserName()}
+      userName={USER_DISPLAY_NAME}
       error={error}
     />
   );

@@ -3,14 +3,7 @@ import { Alert } from 'react-native';
 
 import { fetchDecryptedAccountsPage } from '../../data/repositories/accountRepository';
 import type { Account } from '../../data/models/account';
-
-const DEFAULT_PER_PAGE = 10;
-
-function resolvePerPage(): number {
-  const raw = process.env.EXPO_PUBLIC_ACCOUNTS_PER_PAGE;
-  const parsed = raw ? Number(raw) : DEFAULT_PER_PAGE;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_PER_PAGE;
-}
+import { ACCOUNTS_PER_PAGE } from '../../data/models/accountConfig';
 
 export type UseAccountViewModelResult = {
   accounts: Account[];
@@ -29,7 +22,7 @@ export type UseAccountViewModelResult = {
  * Accounts ViewModel — pagination UI state; data sync via AccountRepository.
  */
 export function useAccountViewModel(): UseAccountViewModelResult {
-  const perPage = resolvePerPage();
+  const perPage = ACCOUNTS_PER_PAGE;
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [page, setPage] = useState(1);
