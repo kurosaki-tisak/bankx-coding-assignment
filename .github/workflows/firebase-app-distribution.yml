@@ -7,10 +7,7 @@
 #                                     (all EXPO_PUBLIC_* lines)
 #   FIREBASE_SERVICE_ACCOUNT_JSON   — GCP service account JSON with
 #                                     Firebase App Distribution Admin
-#   FIREBASE_ANDROID_APP_ID         — 1:450615736950:android:005d5b9231c484eec93d57
-#
-# Optional:
-#   FIREBASE_TESTER_GROUPS          — comma-separated groups (default: testers)
+#   FIREBASE_ANDROID_APP_ID         — Android app ID
 
 name: Firebase App Distribution (Android)
 
@@ -91,19 +88,12 @@ jobs:
           echo "Found APK: ${APK_PATH}"
           ls -lh "${APK_PATH}"
 
-      - name: Resolve tester groups
-        id: groups
-        run: |
-          GROUPS="${{ secrets.FIREBASE_TESTER_GROUPS }}"
-          if [ -z "${GROUPS}" ]; then GROUPS="testers"; fi
-          echo "value=${GROUPS}" >> "${GITHUB_OUTPUT}"
-
       - name: Upload to Firebase App Distribution
         uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
           appId: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-          groups: ${{ steps.groups.outputs.value }}
+          groups: testers
           file: ${{ steps.apk.outputs.path }}
           releaseNotes: |
             KakaoBankApp Android (expo prebuild)
