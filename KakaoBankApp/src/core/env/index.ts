@@ -1,13 +1,28 @@
+import Constants from 'expo-constants';
+
 /**
- * Environment helpers — EXPO_PUBLIC_* with optional development fallbacks.
+ * Environment helpers — EXPO_PUBLIC_* from:
+ * 1) process.env (Metro / expo start)
+ * 2) expo-constants extra (baked at prebuild for release APKs)
  */
 
-export function getEnv(name: string): string | undefined {
-  const value = process.env[name];
-  if (value === undefined || value.trim() === '') {
+function readFromExtra(name: string): string | undefined {
+  const extra = Constants.expoConfig?.extra as
+    | Record<string, unknown>
+    | undefined;
+  const value = extra?.[name];
+  if (typeof value !== 'string' || value.trim() === '') {
     return undefined;
   }
-  return value;
+  return value.trim();
+}
+
+export function getEnv(name: string): string | undefined {
+  const fromProcess = process.env[name];
+  if (typeof fromProcess === 'string' && fromProcess.trim() !== '') {
+    return fromProcess.trim();
+  }
+  return readFromExtra(name);
 }
 
 export function requireEnv(name: string): string {
@@ -15,8 +30,8 @@ export function requireEnv(name: string): string {
   if (!value) {
     throw new Error(
       `Missing required environment variable: ${name}. ` +
-        `For local runs copy KakaoBankApp/.env.example → .env. ` +
-        `For App Distribution builds set the same key as a GitHub Actions secret.`,
+        `For local runs ensure KakaoBankApp/.env exists (see .env.example). ` +
+        `For App Distribution builds set the same key as a GitHub Actions secret and rebuild.`,
     );
   }
   return value;

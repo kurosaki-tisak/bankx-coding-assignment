@@ -110,33 +110,47 @@ jobs:
       - name: Write .env from GitHub Secrets
         run: |
           set -euo pipefail
-          cat > .env <<EOF
-          EXPO_PUBLIC_FIREBASE_API_KEY=${EXPO_PUBLIC_FIREBASE_API_KEY}
-          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=${EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN}
-          EXPO_PUBLIC_FIREBASE_PROJECT_ID=${EXPO_PUBLIC_FIREBASE_PROJECT_ID}
-          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=${EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET}
-          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}
-          EXPO_PUBLIC_FIREBASE_APP_ID=${EXPO_PUBLIC_FIREBASE_APP_ID}
-          EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION=${EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION}
-          EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT=${EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT}
-          EXPO_PUBLIC_FIRESTORE_SECRET_FIELD=${EXPO_PUBLIC_FIRESTORE_SECRET_FIELD}
-          EXPO_PUBLIC_ACCOUNTS_API_URL=${EXPO_PUBLIC_ACCOUNTS_API_URL}
-          EOF
-          # Strip leading spaces from heredoc indentation
-          sed -i 's/^[[:space:]]*//' .env
+          {
+            echo "EXPO_PUBLIC_FIREBASE_API_KEY=${EXPO_PUBLIC_FIREBASE_API_KEY}"
+            echo "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=${EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN}"
+            echo "EXPO_PUBLIC_FIREBASE_PROJECT_ID=${EXPO_PUBLIC_FIREBASE_PROJECT_ID}"
+            echo "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=${EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET}"
+            echo "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}"
+            echo "EXPO_PUBLIC_FIREBASE_APP_ID=${EXPO_PUBLIC_FIREBASE_APP_ID}"
+            echo "EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION=${EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION}"
+            echo "EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT=${EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT}"
+            echo "EXPO_PUBLIC_FIRESTORE_SECRET_FIELD=${EXPO_PUBLIC_FIRESTORE_SECRET_FIELD}"
+            echo "EXPO_PUBLIC_ACCOUNTS_API_URL=${EXPO_PUBLIC_ACCOUNTS_API_URL}"
+          } > .env
           echo "Wrote KakaoBankApp/.env ($(wc -l < .env) lines)"
-          # Do not print secret values — only confirm keys exist
           cut -d= -f1 .env
+          # Fail fast if API key line is empty after write
+          if ! grep -q '^EXPO_PUBLIC_FIREBASE_API_KEY=.\+' .env; then
+            echo "::error::EXPO_PUBLIC_FIREBASE_API_KEY is empty after writing .env"
+            exit 1
+          fi
 
       - name: Expo prebuild (Android)
-        run: npx expo prebuild --platform android --non-interactive --no-install
+        run: |
+          set -euo pipefail
+          # app.config.js embeds EXPO_PUBLIC_* into expo.extra for runtime (expo-constants)
+          npx expo prebuild --platform android --non-interactive --no-install
+          # Sanity: ensure config resolved the API key into extra
+          node -e "
+            const cfg = require('./app.config.js')();
+            if (!cfg.extra?.EXPO_PUBLIC_FIREBASE_API_KEY) {
+              console.error('app.config.js extra is missing EXPO_PUBLIC_FIREBASE_API_KEY');
+              process.exit(1);
+            }
+            console.log('app.config extra contains Firebase keys');
+          "
 
       - name: Build release APK
         working-directory: KakaoBankApp/android
         run: |
           set -euo pipefail
           chmod +x gradlew
-          # Env from job.env is inherited so Metro inlines EXPO_PUBLIC_* into the bundle
+          # Job env + .env must be present so Metro / Expo can resolve EXPO_PUBLIC_*
           ./gradlew assembleRelease --no-daemon
 
       - name: Locate APK

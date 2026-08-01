@@ -36,5 +36,9 @@
     "prebuild:android": "expo prebuild --platform android --non-interactive",
     "build:android:apk": "expo prebuild --platform android --non-interactive --no-install && cd android && ./gradlew assembleRelease"
   },
-  "private": true
+  "private": true,
+  "allowScripts": {
+    "@firebase/util@1.15.2": true,
+    "protobufjs@7.6.5": true
+  }
 }
