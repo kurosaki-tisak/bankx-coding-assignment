@@ -1,10 +1,10 @@
 import { Platform, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 
-import { useTabBarViewModel } from '@/src/features/navigation/hooks/useTabBarViewModel';
-import { TabBarIcon } from '@/src/features/navigation/presenters/TabBarIcon';
-import type { TabRouteName } from '@/src/features/navigation/types/tab';
-import { colors, size, spacing, typography } from '@/src/theme';
+import { useTabBarViewModel } from '@/src/features/navigation/presentation/hooks/useTabBarViewModel';
+import { TabBarIcon } from '@/src/features/navigation/presentation/components/TabBarIcon';
+import type { TabRouteName } from '@/src/features/navigation/data/models/tab';
+import { colors, size, spacing, typography } from '@/src/core/theme';
 
 export default function TabLayout() {
   const { tabs } = useTabBarViewModel();

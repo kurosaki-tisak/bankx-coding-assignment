@@ -4,10 +4,14 @@
 ==================================================
 1. สถาปัตยกรรมระบบ (MVVM Architecture Rules)
 ==================================================
-- โปรเจกต์นี้ใช้โครงสร้างแบบ MVVM Pattern (Custom Hook = ViewModel, Component/Presenter = View)
+- โปรเจกต์นี้ใช้โครงสร้างแบบ MVVM Pattern ตามโฟลเดอร์:
+  `src/features/[feature]/data|presentation|native` และ `src/core/{firebase,theme}`
+- Model = `data/api` + `data/repositories` + `data/models`
+- ViewModel = `presentation/hooks/use*ViewModel.ts`
+- View = `presentation/components` + `presentation/screens`
 - ห้ามเขียน Logic ของการดึงข้อมูล, การคำนวณสเตต, หรือการทำคริปโตกราฟีลงในคอมโพเนนต์ UI โดยตรงเด็ดขาด
-- โค้ดฝั่ง UI Presenter ต้องรับค่าผ่าน Props และแสดงผลตามสเตตอย่างเดียว (Stateless UI / Pure Component)
-- แยกโฟลเดอร์ให้ชัดเจนตามฟีเจอร์ในไดเรกทอรี `src/features/[feature_name]/`
+- โค้ดฝั่ง UI ต้องรับค่าผ่าน Props และแสดงผลตามสเตตอย่างเดียว (Stateless UI / Pure Component)
+- AES decrypt ผ่าน `features/accounts/native/AesDecryptor` เท่านั้น
 
 ==================================================
 2. ระบบรักษาความปลอดภัยและการจัดการข้อมูล (Security & Data)
@@ -22,7 +26,7 @@
 3. มาตรฐานระบบดีไซน์และประสบการณ์ผู้ใช้ (UI/UX & Design System)
 ==================================================
 - อัตลักษณ์แอป KakaoBank: ใช้สีเหลืองสดอันเป็นเอกลักษณ์ (#FEE500) เป็นสี Accent และใช้พื้นหลังสีสว่างโทนอุ่น (#F7F7F7) เพื่อให้อ่านง่าย
-- ห้ามเดาค่าสีหรือสุ่มตัวเลข Padding/Margin เอง ให้เรียกใช้ดีไซน์โทเค็นจาก `src/theme/` เท่านั้น เพื่อความเป็นเอกภาพ (Visual Consistency)
+- ห้ามเดาค่าสีหรือสุ่มตัวเลข Padding/Margin เอง ให้เรียกใช้ดีไซน์โทเค็นจาก `src/core/theme/` เท่านั้น เพื่อความเป็นเอกภาพ (Visual Consistency)
 - ดีไซน์ต้องรองรับอุปกรณ์พกพาทุกหน้าจอ (Responsive) โดยใช้ระบบ Flexbox เป็นหลัก และใช้พื้นที่ปลอดภัยอย่างเหมาะสม (SafeAreaView)
 - ข้อมูลทุกฟิลด์ที่ส่งมาจาก API Response ต้องถูกนำไปจัดวางบนหน้าจอทั้งหมด ห้ามตกหล่นฟิลด์ใดฟิลด์หนึ่ง
 - แสดงสถานะระหว่างโหลดข้อมูล (Loading/Skeleton State) ให้ชัดเจน ห้ามปล่อยให้หน้าจอว่างเปล่า

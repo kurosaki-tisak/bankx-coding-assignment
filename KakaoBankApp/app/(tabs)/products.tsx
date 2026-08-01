@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors, spacing, typography } from '@/src/theme';
+import { colors, spacing, typography } from '@/src/core/theme';
 
 export default function ProductsScreen() {
   return (
