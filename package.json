@@ -1,0 +1,10 @@
+{
+  "name": "bankx-coding-assignment",
+  "private": true,
+  "scripts": {
+    "firebase:login": "npx -y firebase-tools@latest login",
+    "firebase:projects": "npx -y firebase-tools@latest projects:list",
+    "firebase:use": "npx -y firebase-tools@latest use bankx-code-assignment",
+    "firebase:apps": "npx -y firebase-tools@latest apps:list --project bankx-code-assignment"
+  }
+}

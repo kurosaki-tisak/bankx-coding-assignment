@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "450615736950",
+    "project_id": "bankx-code-assignment",
+    "storage_bucket": "bankx-code-assignment.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:450615736950:android:005d5b9231c484eec93d57",
+        "android_client_info": {
+          "package_name": "com.bankx.kakaobankapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD3iKPH7d86xX8oCjxYgwIkUWXI6O-_ESs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

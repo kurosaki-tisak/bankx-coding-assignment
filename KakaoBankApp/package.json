@@ -32,7 +32,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "mock-server": "npm --prefix ../mobile-react-native-json-server start",
-    "mock-server:install": "npm --prefix ../mobile-react-native-json-server install"
+    "mock-server:install": "npm --prefix ../mobile-react-native-json-server install",
+    "prebuild:android": "expo prebuild --platform android --non-interactive",
+    "build:android:apk": "expo prebuild --platform android --non-interactive --no-install && cd android && ./gradlew assembleRelease"
   },
   "private": true
 }
