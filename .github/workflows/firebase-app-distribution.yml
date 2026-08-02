@@ -153,16 +153,10 @@ jobs:
           set -euo pipefail
           chmod +x gradlew
           # Job env + .env must be present so Metro / Expo can resolve EXPO_PUBLIC_*
-          # Skip lintVital*: Android Lint can crash analyzing generated
-          # ReactNativeApplicationEntryPoint.java (known Lint / metaspace issue).
-          # checkReleaseBuilds is also disabled via withAndroidReleaseBuildFixes.
-          ./gradlew assembleRelease --no-daemon \
-            -x lintVitalAnalyzeRelease \
-            -x lintVitalReportRelease
+          ./gradlew assembleRelease --no-daemon
         env:
-          # 512m metaspace OOMs during lint / UAST on Expo+RN modules
-          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"
-          JAVA_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=1024m"
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-XX:MaxMetaspaceSize=512m -Xmx2g"
+          JAVA_OPTS: "-XX:MaxMetaspaceSize=512m -Xmx2g"
 
       - name: Locate APK
         id: apk
