@@ -1,5 +1,9 @@
 import { decryptAes128Ecb } from '../../native/AesDecryptor';
-import { fetchAccountsPage } from '../api/accountApi';
+import {
+  fetchAccountById,
+  fetchAccountsPage,
+  fetchTopAccountsByBalance,
+} from '../api/accountApi';
 import type { Account, AccountApiItem, AccountsPageResult } from '../models/account';
 import { fetchAccountsApiUrl } from './accountsEndpointRepository';
 import { fetchEncryptionSecretKey } from './encryptionKeyRepository';
@@ -23,6 +27,10 @@ function decryptAccountItem(
   };
 }
 
+function decryptMany(items: AccountApiItem[], secretKey: string): Account[] {
+  return items.map((item) => decryptAccountItem(item, secretKey));
+}
+
 let cachedSecretKey: string | null = null;
 
 async function resolveSecretKey(): Promise<string> {
@@ -33,35 +41,57 @@ async function resolveSecretKey(): Promise<string> {
   return cachedSecretKey;
 }
 
+async function resolveBaseUrlAndKey(): Promise<{
+  baseUrl: string;
+  secretKey: string;
+}> {
+  const [baseUrl, secretKey] = await Promise.all([
+    fetchAccountsApiUrl(),
+    resolveSecretKey(),
+  ]);
+  return { baseUrl, secretKey };
+}
+
 /**
- * Data sync — resolve API URL + AES key from Firestore, fetch page, decrypt.
+ * Paginated View All list.
  */
 export async function fetchDecryptedAccountsPage(
   page: number,
   perPage: number,
 ): Promise<DecryptedAccountsPage> {
-  const [baseUrl, secretKey] = await Promise.all([
-    fetchAccountsApiUrl(),
-    resolveSecretKey(),
-  ]);
-
+  const { baseUrl, secretKey } = await resolveBaseUrlAndKey();
   const result: AccountsPageResult = await fetchAccountsPage(
     baseUrl,
     page,
     perPage,
   );
 
-  const accounts = result.items.map((item) =>
-    decryptAccountItem(item, secretKey),
-  );
-
   return {
-    accounts,
+    accounts: decryptMany(result.items, secretKey),
     totalCount: result.totalCount,
   };
 }
 
-/** Clears cached Firestore AES key (e.g. after logout / key rotation). */
+/** Top N accounts by balance (for featured cards). */
+export async function fetchDecryptedTopAccountsByBalance(
+  limit: number,
+): Promise<Account[]> {
+  const { baseUrl, secretKey } = await resolveBaseUrlAndKey();
+  const items = await fetchTopAccountsByBalance(baseUrl, limit);
+  return decryptMany(items, secretKey);
+}
+
+export async function fetchDecryptedAccountById(
+  accountId: string,
+): Promise<Account | null> {
+  const { baseUrl, secretKey } = await resolveBaseUrlAndKey();
+  const item = await fetchAccountById(baseUrl, accountId);
+  if (!item) {
+    return null;
+  }
+  return decryptAccountItem(item, secretKey);
+}
+
 export function clearEncryptionKeyCache(): void {
   cachedSecretKey = null;
 }

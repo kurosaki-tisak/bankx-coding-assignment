@@ -1,12 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { Alert } from 'react-native';
 
 import type { Account } from '../../data/models/account';
 import { USER_DISPLAY_NAME } from '../../data/models/accountConfig';
-import {
-  AccountList,
-  type AccountSortKey,
-} from '../components/AccountList';
+import { AccountList } from '../components/AccountList';
 import { useAccountViewModel } from '../hooks/useAccountViewModel';
 
 /**
@@ -14,16 +11,18 @@ import { useAccountViewModel } from '../hooks/useAccountViewModel';
  */
 export default function AccountListScreen() {
   const {
-    accounts,
+    favoriteAccount,
+    topBalanceAccounts,
+    viewAllAccounts,
     isLoading,
     isRefreshing,
     isLoadingMore,
     error,
     refresh,
     loadMore,
+    toggleFavorite,
+    isFavorite,
   } = useAccountViewModel();
-
-  const [sortKey, setSortKey] = useState<AccountSortKey>('balance_desc');
 
   const handleAccountPress = useCallback((account: Account) => {
     Alert.alert(
@@ -31,7 +30,7 @@ export default function AccountListScreen() {
       [
         `id: ${account.id}`,
         `name: ${account.name}`,
-        `balance: ${account.balance.toLocaleString('th-TH')} วอน`,
+        `balance: ₩${account.balance.toLocaleString('en-US')}`,
         `เลขบัญชี: ${account.account_number}`,
         `encrytedAccountNumber: ${account.encrytedAccountNumber}`,
       ].join('\n'),
@@ -44,9 +43,9 @@ export default function AccountListScreen() {
 
   return (
     <AccountList
-      accounts={accounts}
-      sortKey={sortKey}
-      onSortChange={setSortKey}
+      favoriteAccount={favoriteAccount}
+      topBalanceAccounts={topBalanceAccounts}
+      viewAllAccounts={viewAllAccounts}
       isLoading={isLoading}
       isRefreshing={isRefreshing}
       isLoadingMore={isLoadingMore}
@@ -55,6 +54,8 @@ export default function AccountListScreen() {
       onRetry={refresh}
       onAccountPress={handleAccountPress}
       onTransferPress={handleTransferPress}
+      onToggleFavorite={toggleFavorite}
+      isFavorite={isFavorite}
       userName={USER_DISPLAY_NAME}
       error={error}
     />

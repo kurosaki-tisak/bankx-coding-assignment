@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -10,10 +10,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import {
-  AccountCard,
-  AccountCardSkeleton,
-} from '@/src/features/accounts/presentation/components/AccountCard';
 import type { Account } from '@/src/features/accounts/data/models/account';
 import {
   colors,
@@ -25,18 +21,13 @@ import {
   typography,
 } from '@/src/core/theme';
 
-export type AccountSortKey =
-  | 'balance_desc'
-  | 'balance_asc'
-  | 'name_asc'
-  | 'name_desc'
-  | 'id_asc'
-  | 'id_desc';
+import { AccountListRow } from './AccountListRow';
+import { FeaturedAccountCard } from './FeaturedAccountCard';
 
 export type AccountListProps = {
-  accounts: Account[];
-  sortKey: AccountSortKey;
-  onSortChange: (key: AccountSortKey) => void;
+  favoriteAccount: Account | null;
+  topBalanceAccounts: Account[];
+  viewAllAccounts: Account[];
   isLoading: boolean;
   isRefreshing: boolean;
   isLoadingMore: boolean;
@@ -45,64 +36,35 @@ export type AccountListProps = {
   onRetry?: () => void;
   onAccountPress?: (account: Account) => void;
   onTransferPress?: (account: Account) => void;
+  onToggleFavorite?: (account: Account) => void;
+  isFavorite?: (accountId: string | number) => boolean;
   userName?: string;
   error?: string | null;
 };
 
-const SORT_OPTIONS: { key: AccountSortKey; label: string }[] = [
-  { key: 'balance_desc', label: 'ยอดสูง → ต่ำ' },
-  { key: 'balance_asc', label: 'ยอดต่ำ → สูง' },
-  { key: 'name_asc', label: 'ชื่อ A-Z' },
-  { key: 'id_asc', label: 'รหัส ↑' },
-];
-
-function toId(value: string | number): number {
-  const parsed = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-export function sortAccounts(
-  accounts: Account[],
-  sortKey: AccountSortKey,
-): Account[] {
-  const sorted = [...accounts];
-
-  switch (sortKey) {
-    case 'balance_asc':
-      return sorted.sort((a, b) => a.balance - b.balance);
-    case 'balance_desc':
-      return sorted.sort((a, b) => b.balance - a.balance);
-    case 'name_asc':
-      return sorted.sort((a, b) => a.name.localeCompare(b.name, 'th'));
-    case 'name_desc':
-      return sorted.sort((a, b) => b.name.localeCompare(a.name, 'th'));
-    case 'id_asc':
-      return sorted.sort((a, b) => toId(a.id) - toId(b.id));
-    case 'id_desc':
-      return sorted.sort((a, b) => toId(b.id) - toId(a.id));
-    default:
-      return sorted;
-  }
-}
-
 type ListHeaderProps = {
   userName: string;
-  sortKey: AccountSortKey;
-  onSortChange: (key: AccountSortKey) => void;
+  favoriteAccount: Account | null;
+  topBalanceAccounts: Account[];
   error?: string | null;
   onRetry?: () => void;
+  onAccountPress?: (account: Account) => void;
+  onTransferPress?: (account: Account) => void;
+  onToggleFavorite?: (account: Account) => void;
 };
 
 const ListHeader = memo(function ListHeader({
   userName,
-  sortKey,
-  onSortChange,
+  favoriteAccount,
+  topBalanceAccounts,
   error,
   onRetry,
+  onAccountPress,
+  onTransferPress,
+  onToggleFavorite,
 }: ListHeaderProps) {
   return (
     <View style={styles.headerBlock}>
-      {/* Top bar — ชื่อ + บัญชีของฉัน + กระดิ่ง */}
       <View style={styles.topBar}>
         <View style={styles.userRow}>
           <Text style={styles.userName} numberOfLines={1}>
@@ -126,50 +88,6 @@ const ListHeader = memo(function ListHeader({
         </Pressable>
       </View>
 
-      {/* Promo banner — flat white card */}
-      <View style={styles.promoCard}>
-        <View style={styles.promoTextWrap}>
-          <Text style={styles.promoLine}>แยกขยะรีไซเคิล</Text>
-          <Text style={styles.promoLine}>แล้วรับพอยต์ได้เลย</Text>
-        </View>
-        <View style={styles.promoMascot}>
-          <Text style={styles.promoMascotText}>🐱🐰</Text>
-        </View>
-        <View style={styles.promoDots} pointerEvents="none">
-          <View style={[styles.dot, styles.dotActive]} />
-          <View style={styles.dot} />
-          <View style={styles.dot} />
-        </View>
-      </View>
-
-      {/* Compact sort — functional, visually quiet */}
-      <View style={styles.sortRow}>
-        {SORT_OPTIONS.map((option) => {
-          const selected = option.key === sortKey;
-          return (
-            <Pressable
-              key={option.key}
-              accessibilityRole="button"
-              onPress={() => onSortChange(option.key)}
-              style={({ pressed }) => [
-                styles.sortChip,
-                selected && styles.sortChipSelected,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.sortChipText,
-                  selected && styles.sortChipTextSelected,
-                ]}
-              >
-                {option.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
       {error ? (
         <View style={styles.errorBanner}>
           <Text style={styles.errorTitle}>เกิดข้อผิดพลาดชั่วคราว</Text>
@@ -188,17 +106,70 @@ const ListHeader = memo(function ListHeader({
           ) : null}
         </View>
       ) : null}
+
+      {favoriteAccount ? (
+        <FeaturedAccountCard
+          account={favoriteAccount}
+          variant="favorite"
+          onPress={onAccountPress}
+          onTransferPress={onTransferPress}
+          onCardPress={onAccountPress}
+          onMorePress={onAccountPress}
+          onToggleFavorite={onToggleFavorite}
+        />
+      ) : (
+        <View style={styles.emptyFavorite}>
+          <Text style={styles.emptyFavoriteTitle}>ยังไม่มีบัญชีโปรด</Text>
+          <Text style={styles.emptyFavoriteHint}>
+            กด☆ ที่บัญชีในรายการด้านล่างเพื่อปักหมุดไว้ด้านบน
+          </Text>
+        </View>
+      )}
+
+      {topBalanceAccounts[0] ? (
+        <FeaturedAccountCard
+          account={topBalanceAccounts[0]}
+          variant="top1"
+          onPress={onAccountPress}
+          onTransferPress={onTransferPress}
+          onMorePress={onAccountPress}
+          onToggleFavorite={onToggleFavorite}
+        />
+      ) : null}
+
+      {topBalanceAccounts[1] ? (
+        <FeaturedAccountCard
+          account={topBalanceAccounts[1]}
+          variant="top2"
+          onPress={onAccountPress}
+          onMorePress={onAccountPress}
+          onToggleFavorite={onToggleFavorite}
+        />
+      ) : null}
+
+      <View style={styles.viewAllHeader}>
+        <Text style={styles.viewAllTitle}>ดูทั้งหมด</Text>
+      </View>
     </View>
   );
 });
 
+function FeaturedSkeleton() {
+  return (
+    <View style={styles.skeletonCard}>
+      <View style={styles.skeletonLineShort} />
+      <View style={styles.skeletonLine} />
+    </View>
+  );
+}
+
 /**
- * KakaoBank home Presenter — props-only UI matching screenshot UX.
+ * KakaoBank accounts home — favourite + top balances + View All list.
  */
 export function AccountList({
-  accounts,
-  sortKey,
-  onSortChange,
+  favoriteAccount,
+  topBalanceAccounts,
+  viewAllAccounts,
   isLoading,
   isRefreshing,
   isLoadingMore,
@@ -207,25 +178,24 @@ export function AccountList({
   onRetry,
   onAccountPress,
   onTransferPress,
+  onToggleFavorite,
+  isFavorite,
   userName = 'คุณลูกค้า',
   error,
 }: AccountListProps) {
-  const sortedAccounts = useMemo(
-    () => sortAccounts(accounts, sortKey),
-    [accounts, sortKey],
-  );
-
   const renderItem = useCallback<ListRenderItem<Account>>(
     ({ item, index }) => (
-      <AccountCard
-        account={item}
-        index={index}
-        onPress={onAccountPress}
-        onTransferPress={onTransferPress}
-        onMorePress={onAccountPress}
-      />
+      <View style={styles.viewAllRowWrap}>
+        <AccountListRow
+          account={item}
+          index={index}
+          isFavorite={isFavorite?.(item.id) ?? false}
+          onPress={onAccountPress}
+          onToggleFavorite={onToggleFavorite}
+        />
+      </View>
     ),
-    [onAccountPress, onTransferPress],
+    [isFavorite, onAccountPress, onToggleFavorite],
   );
 
   const keyExtractor = useCallback((item: Account) => String(item.id), []);
@@ -233,21 +203,28 @@ export function AccountList({
   const listHeader = (
     <ListHeader
       userName={userName}
-      sortKey={sortKey}
-      onSortChange={onSortChange}
+      favoriteAccount={favoriteAccount}
+      topBalanceAccounts={topBalanceAccounts}
       error={error}
       onRetry={onRetry}
+      onAccountPress={onAccountPress}
+      onTransferPress={onTransferPress}
+      onToggleFavorite={onToggleFavorite}
     />
   );
 
-  if (isLoading && accounts.length === 0) {
+  if (isLoading && viewAllAccounts.length === 0) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <View style={styles.skeletonContainer}>
-          {listHeader}
-          <AccountCardSkeleton />
-          <AccountCardSkeleton />
-          <AccountCardSkeleton />
+          <View style={styles.topBar}>
+            <View style={styles.skeletonName} />
+          </View>
+          <FeaturedSkeleton />
+          <FeaturedSkeleton />
+          <FeaturedSkeleton />
+          <Text style={styles.viewAllTitle}>ดูทั้งหมด</Text>
+          <FeaturedSkeleton />
         </View>
       </SafeAreaView>
     );
@@ -258,7 +235,7 @@ export function AccountList({
       <FlatList
         style={styles.list}
         contentContainerStyle={styles.listContent}
-        data={sortedAccounts}
+        data={viewAllAccounts}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         ListHeaderComponent={listHeader}
@@ -295,8 +272,8 @@ export function AccountList({
         onRefresh={onRefresh}
         onEndReached={onLoadMore}
         onEndReachedThreshold={0.35}
-        initialNumToRender={5}
-        maxToRenderPerBatch={5}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
         windowSize={7}
         removeClippedSubviews
         showsVerticalScrollIndicator={false}
@@ -313,6 +290,33 @@ const styles = StyleSheet.create({
   skeletonContainer: {
     flex: 1,
     paddingHorizontal: layout.screenPaddingX,
+    paddingTop: spacing.sm,
+  },
+  skeletonCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    padding: spacing.xl,
+    marginBottom: spacing.md,
+    gap: spacing.md,
+  },
+  skeletonName: {
+    width: '40%',
+    height: spacing.xxxl,
+    borderRadius: radius.sm,
+    backgroundColor: colors.skeleton.base,
+    marginBottom: spacing.lg,
+  },
+  skeletonLine: {
+    width: '55%',
+    height: spacing.xxl,
+    borderRadius: radius.sm,
+    backgroundColor: colors.skeleton.base,
+  },
+  skeletonLineShort: {
+    width: '35%',
+    height: spacing.lg,
+    borderRadius: radius.sm,
+    backgroundColor: colors.skeleton.base,
   },
   list: {
     flex: 1,
@@ -325,7 +329,7 @@ const styles = StyleSheet.create({
   },
   headerBlock: {
     paddingTop: spacing.sm,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   topBar: {
     flexDirection: 'row',
@@ -374,71 +378,40 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     backgroundColor: colors.notification,
   },
-  promoCard: {
+  emptyFavorite: {
     backgroundColor: colors.surface,
     borderRadius: radius.card,
-    paddingVertical: spacing.xl,
-    paddingHorizontal: spacing.xl,
+    padding: spacing.xl,
     marginBottom: spacing.md,
-    minHeight: size.promoMinHeight,
-    justifyContent: 'center',
   },
-  promoTextWrap: {
-    maxWidth: '68%',
-  },
-  promoLine: {
+  emptyFavoriteTitle: {
     color: colors.text.primary,
     fontSize: typography.size.bodyLarge,
     fontWeight: typography.weight.semibold,
-    lineHeight: typography.size.bodyLarge * typography.lineHeight.relaxed,
+    marginBottom: spacing.xs,
   },
-  promoMascot: {
-    position: 'absolute',
-    right: spacing.xl,
-    bottom: spacing.md,
-  },
-  promoMascotText: {
-    fontSize: typography.size.hero,
-  },
-  promoDots: {
-    position: 'absolute',
-    top: spacing.md,
-    right: spacing.lg,
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  dot: {
-    width: spacing.xs + spacing.xxs,
-    height: spacing.xs + spacing.xxs,
-    borderRadius: radius.full,
-    backgroundColor: colors.border.default,
-  },
-  dotActive: {
-    backgroundColor: colors.text.primary,
-  },
-  sortRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  sortChip: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  sortChipSelected: {
-    backgroundColor: colors.accent,
-  },
-  sortChipText: {
+  emptyFavoriteHint: {
     color: colors.text.secondary,
-    fontSize: typography.size.micro,
-    fontWeight: typography.weight.medium,
+    fontSize: typography.size.body,
   },
-  sortChipTextSelected: {
-    color: colors.text.onAccent,
-    fontWeight: typography.weight.semibold,
+  viewAllHeader: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.card,
+    borderTopRightRadius: radius.card,
+    paddingTop: spacing.xl,
+    paddingHorizontal: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  viewAllTitle: {
+    color: colors.text.primary,
+    fontSize: typography.size.subtitle,
+    fontWeight: typography.weight.bold,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.sm,
+  },
+  viewAllRowWrap: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.sm,
   },
   errorBanner: {
     backgroundColor: colors.surface,
@@ -479,6 +452,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: spacing.massive,
     gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderBottomLeftRadius: radius.card,
+    borderBottomRightRadius: radius.card,
   },
   emptyTitle: {
     color: colors.text.primary,
@@ -493,8 +469,14 @@ const styles = StyleSheet.create({
   footerLoading: {
     paddingVertical: spacing.lg,
     alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderBottomLeftRadius: radius.card,
+    borderBottomRightRadius: radius.card,
   },
   footerSpacer: {
     height: spacing.xl,
+    backgroundColor: colors.surface,
+    borderBottomLeftRadius: radius.card,
+    borderBottomRightRadius: radius.card,
   },
 });
