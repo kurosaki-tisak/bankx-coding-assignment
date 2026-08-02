@@ -50,15 +50,19 @@ export const colors = {
   overlay: 'rgba(25, 25, 25, 0.4)',
   transparent: 'transparent',
 
-  /** Pastel account cards — sampled from KakaoBank home */
+  /** Featured / list account cards — KakaoBank home screenshot */
   accountCard: {
-    mint: '#D1E6D9',
+    favorite: '#FEE500',
     coral: '#ED8F74',
+    purple: '#8B8ECF',
+    mint: '#D1E6D9',
     steel: '#5A84A2',
     taupe: '#D3CCB9',
     lilac: '#D9D4F0',
     peach: '#F0D5C4',
   },
+
+  viewAllBadge: '#4A90E2',
 
   chip: {
     background: '#EFEFEF',
