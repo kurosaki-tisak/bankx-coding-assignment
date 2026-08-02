@@ -1,3 +1,4 @@
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { memo, useCallback } from 'react';
 import {
   ActivityIndicator,
@@ -83,7 +84,11 @@ const ListHeader = memo(function ListHeader({
             pressed && styles.pressed,
           ]}
         >
-          <Text style={styles.bellIcon}>🔔</Text>
+          <MaterialIcons
+            name="notifications-none"
+            size={size.bell}
+            color={colors.icon.active}
+          />
           <View style={styles.bellDot} />
         </Pressable>
       </View>
@@ -121,7 +126,7 @@ const ListHeader = memo(function ListHeader({
         <View style={styles.emptyFavorite}>
           <Text style={styles.emptyFavoriteTitle}>ยังไม่มีบัญชีโปรด</Text>
           <Text style={styles.emptyFavoriteHint}>
-            กด☆ ที่บัญชีในรายการด้านล่างเพื่อปักหมุดไว้ด้านบน
+            กดไอคอนดาวที่บัญชีในรายการด้านล่างเพื่อปักหมุดไว้ด้านบน
           </Text>
         </View>
       )}
@@ -365,9 +370,6 @@ const styles = StyleSheet.create({
     height: size.bell,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  bellIcon: {
-    fontSize: typography.size.title,
   },
   bellDot: {
     position: 'absolute',

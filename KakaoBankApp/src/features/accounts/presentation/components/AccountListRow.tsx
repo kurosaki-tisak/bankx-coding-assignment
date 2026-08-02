@@ -1,4 +1,5 @@
-import { memo } from 'react';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { memo, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Account } from '@/src/features/accounts/data/models/account';
@@ -19,7 +20,16 @@ export type AccountListRowProps = {
   onToggleFavorite?: (account: Account) => void;
 };
 
-const ROW_ICONS = ['💗', '📅', '📁', '💳', '🏦', '⭐'] as const;
+type MaterialIconName = ComponentProps<typeof MaterialIcons>['name'];
+
+const ROW_ICONS: MaterialIconName[] = [
+  'favorite',
+  'event',
+  'folder',
+  'credit-card',
+  'account-balance',
+  'savings',
+];
 
 function formatBalance(balance: number): string {
   return `₩${new Intl.NumberFormat('en-US').format(balance)}`;
@@ -32,7 +42,7 @@ export const AccountListRow = memo(function AccountListRow({
   onPress,
   onToggleFavorite,
 }: AccountListRowProps) {
-  const icon = ROW_ICONS[index % ROW_ICONS.length];
+  const iconName = ROW_ICONS[index % ROW_ICONS.length];
 
   return (
     <Pressable
@@ -41,7 +51,11 @@ export const AccountListRow = memo(function AccountListRow({
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
       <View style={styles.iconWrap}>
-        <Text style={styles.icon}>{icon}</Text>
+        <MaterialIcons
+          name={iconName}
+          size={typography.size.title}
+          color={colors.icon.active}
+        />
       </View>
 
       <View style={styles.content}>
@@ -59,9 +73,11 @@ export const AccountListRow = memo(function AccountListRow({
             onPress={() => onToggleFavorite?.(account)}
             style={({ pressed }) => pressed && styles.pressed}
           >
-            <Text style={[styles.star, isFavorite && styles.starActive]}>
-              {isFavorite ? '★' : '☆'}
-            </Text>
+            <MaterialIcons
+              name={isFavorite ? 'star' : 'star-border'}
+              size={typography.size.bodyLarge}
+              color={isFavorite ? colors.text.primary : colors.icon.muted}
+            />
           </Pressable>
         </View>
         <Text style={styles.balance}>{formatBalance(account.balance)}</Text>
@@ -88,9 +104,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  icon: {
-    fontSize: typography.size.title,
-  },
   content: {
     flex: 1,
     gap: spacing.xxs,
@@ -110,13 +123,6 @@ const styles = StyleSheet.create({
     color: colors.viewAllBadge,
     fontSize: typography.size.caption,
     fontWeight: typography.weight.bold,
-  },
-  star: {
-    color: colors.icon.muted,
-    fontSize: typography.size.bodyLarge,
-  },
-  starActive: {
-    color: colors.text.primary,
   },
   balance: {
     color: colors.text.primary,
