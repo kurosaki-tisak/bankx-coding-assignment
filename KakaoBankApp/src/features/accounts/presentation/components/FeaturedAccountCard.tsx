@@ -17,11 +17,15 @@ export type FeaturedCardVariant = 'favorite' | 'top1' | 'top2';
 export type FeaturedAccountCardProps = {
   account: Account;
   variant: FeaturedCardVariant;
+  accountNumberLabel: string;
+  areAccountNumbersRevealed: boolean;
+  isBiometricPromptPending?: boolean;
   onPress?: (account: Account) => void;
   onTransferPress?: (account: Account) => void;
   onCardPress?: (account: Account) => void;
   onMorePress?: (account: Account) => void;
   onToggleFavorite?: (account: Account) => void;
+  onToggleAccountNumberVisibility?: () => void;
 };
 
 type Palette = {
@@ -81,11 +85,15 @@ function formatBalance(balance: number): string {
 export const FeaturedAccountCard = memo(function FeaturedAccountCard({
   account,
   variant,
+  accountNumberLabel,
+  areAccountNumbersRevealed,
+  isBiometricPromptPending = false,
   onPress,
   onTransferPress,
   onCardPress,
   onMorePress,
   onToggleFavorite,
+  onToggleAccountNumberVisibility,
 }: FeaturedAccountCardProps) {
   const palette = paletteFor(variant);
   const isFavorite = variant === 'favorite';
@@ -110,29 +118,68 @@ export const FeaturedAccountCard = memo(function FeaturedAccountCard({
               color={colors.text.primary}
             />
           </View>
-          <View style={styles.nameRow}>
-            <Text
-              style={[styles.name, { color: palette.primaryText }]}
-              numberOfLines={1}
-            >
-              {account.name}
-            </Text>
+          <View style={styles.titleTextCol}>
+            <View style={styles.nameRow}>
+              <Text
+                style={[styles.name, { color: palette.primaryText }]}
+                numberOfLines={1}
+              >
+                {account.name}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  isFavorite ? 'นำออกจากบัญชีโปรด' : 'ตั้งเป็นบัญชีโปรด'
+                }
+                hitSlop={spacing.sm}
+                onPress={() => onToggleFavorite?.(account)}
+                style={({ pressed }) => pressed && styles.pressed}
+              >
+                <MaterialIcons
+                  name={isFavorite ? 'star' : 'star-border'}
+                  size={typography.size.subtitle}
+                  color={
+                    isFavorite ? colors.text.primary : palette.secondaryText
+                  }
+                />
+              </Pressable>
+            </View>
+
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={
-                isFavorite ? 'นำออกจากบัญชีโปรด' : 'ตั้งเป็นบัญชีโปรด'
+                areAccountNumbersRevealed
+                  ? 'ซ่อนเลขบัญชี'
+                  : 'ยืนยันชีวมิติเพื่อดูเลขบัญชี'
               }
-              hitSlop={spacing.sm}
-              onPress={() => onToggleFavorite?.(account)}
-              style={({ pressed }) => pressed && styles.pressed}
+              disabled={isBiometricPromptPending}
+              hitSlop={spacing.xs}
+              onPress={() => onToggleAccountNumberVisibility?.()}
+              style={({ pressed }) => [
+                styles.accountNumberRow,
+                pressed && styles.pressed,
+              ]}
             >
+              <Text
+                style={[styles.accountNumber, { color: palette.secondaryText }]}
+                numberOfLines={1}
+              >
+                {accountNumberLabel}
+              </Text>
               <MaterialIcons
-                name={isFavorite ? 'star' : 'star-border'}
-                size={typography.size.subtitle}
-                color={
-                  isFavorite ? colors.text.primary : palette.secondaryText
+                name={
+                  areAccountNumbersRevealed ? 'visibility-off' : 'visibility'
                 }
+                size={typography.size.body}
+                color={palette.secondaryText}
               />
+              {!areAccountNumbersRevealed ? (
+                <MaterialIcons
+                  name="fingerprint"
+                  size={typography.size.body}
+                  color={palette.secondaryText}
+                />
+              ) : null}
             </Pressable>
           </View>
         </View>
@@ -209,14 +256,14 @@ const styles = StyleSheet.create({
   },
   topRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: spacing.lg,
   },
   titleGroup: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: spacing.sm,
     paddingRight: spacing.sm,
   },
@@ -228,8 +275,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  nameRow: {
+  titleTextCol: {
     flex: 1,
+    gap: spacing.xs,
+  },
+  nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
@@ -238,6 +288,17 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: typography.size.bodyLarge,
     fontWeight: typography.weight.medium,
+  },
+  accountNumberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  accountNumber: {
+    flexShrink: 1,
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.medium,
+    letterSpacing: 0.3,
   },
   moreHit: {
     width: size.moreHit,
