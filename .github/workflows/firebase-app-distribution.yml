@@ -14,7 +14,9 @@
 #     EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION   (e.g. secrets)
 #     EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT     (e.g. encryption)
 #     EXPO_PUBLIC_FIRESTORE_SECRET_FIELD        (e.g. aesKey)
-#     EXPO_PUBLIC_ACCOUNTS_API_URL
+#
+#   Accounts API URL is loaded at runtime from Firestore:
+#     secrets/endpoint → field accounts
 #
 #   (in code, not secrets): ACCOUNTS_PER_PAGE, USER_DISPLAY_NAME
 #     → src/features/accounts/data/models/accountConfig.ts
@@ -55,7 +57,6 @@ jobs:
       EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION: ${{ secrets.EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION }}
       EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT: ${{ secrets.EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT }}
       EXPO_PUBLIC_FIRESTORE_SECRET_FIELD: ${{ secrets.EXPO_PUBLIC_FIRESTORE_SECRET_FIELD }}
-      EXPO_PUBLIC_ACCOUNTS_API_URL: ${{ secrets.EXPO_PUBLIC_ACCOUNTS_API_URL }}
 
     steps:
       - name: Checkout
@@ -96,8 +97,7 @@ jobs:
             EXPO_PUBLIC_FIREBASE_APP_ID \
             EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION \
             EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT \
-            EXPO_PUBLIC_FIRESTORE_SECRET_FIELD \
-            EXPO_PUBLIC_ACCOUNTS_API_URL
+            EXPO_PUBLIC_FIRESTORE_SECRET_FIELD
           do
             if [ -z "${!key:-}" ]; then
               echo "::error::Missing GitHub Actions secret: ${key}"
@@ -123,7 +123,6 @@ jobs:
             echo "EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION=${EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION}"
             echo "EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT=${EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT}"
             echo "EXPO_PUBLIC_FIRESTORE_SECRET_FIELD=${EXPO_PUBLIC_FIRESTORE_SECRET_FIELD}"
-            echo "EXPO_PUBLIC_ACCOUNTS_API_URL=${EXPO_PUBLIC_ACCOUNTS_API_URL}"
           } > .env
           echo "Wrote KakaoBankApp/.env ($(wc -l < .env) lines)"
           cut -d= -f1 .env

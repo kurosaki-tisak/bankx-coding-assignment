@@ -1,7 +1,5 @@
 import { Alert } from 'react-native';
 
-import { requireEnv } from '@/src/core/env';
-
 import type {
   AccountApiItem,
   AccountsPageResult,
@@ -21,15 +19,16 @@ function isAccountApiItem(value: unknown): value is AccountApiItem {
 }
 
 /**
- * Fetches one page of accounts from mobile-react-native-json-server.
+ * Fetches one page of accounts from the remote API.
  * Sends `_page` + `_per_page` (project rule) and `_limit` (json-server paginate).
+ * `baseUrl` comes from Firestore (secrets/endpoint.accounts) via repository.
  */
 export async function fetchAccountsPage(
+  baseUrl: string,
   page: number,
   perPage: number,
 ): Promise<AccountsPageResult> {
   try {
-    const baseUrl = requireEnv('EXPO_PUBLIC_ACCOUNTS_API_URL');
     const url = new URL(baseUrl);
     url.searchParams.set('_page', String(page));
     url.searchParams.set('_per_page', String(perPage));

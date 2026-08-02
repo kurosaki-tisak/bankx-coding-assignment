@@ -1,6 +1,7 @@
 import { decryptAes128Ecb } from '../../native/AesDecryptor';
 import { fetchAccountsPage } from '../api/accountApi';
 import type { Account, AccountApiItem, AccountsPageResult } from '../models/account';
+import { fetchAccountsApiUrl } from './accountsEndpointRepository';
 import { fetchEncryptionSecretKey } from './encryptionKeyRepository';
 
 export type DecryptedAccountsPage = {
@@ -33,14 +34,22 @@ async function resolveSecretKey(): Promise<string> {
 }
 
 /**
- * Data sync — fetch a page from json-server and decrypt account numbers.
+ * Data sync — resolve API URL + AES key from Firestore, fetch page, decrypt.
  */
 export async function fetchDecryptedAccountsPage(
   page: number,
   perPage: number,
 ): Promise<DecryptedAccountsPage> {
-  const secretKey = await resolveSecretKey();
-  const result: AccountsPageResult = await fetchAccountsPage(page, perPage);
+  const [baseUrl, secretKey] = await Promise.all([
+    fetchAccountsApiUrl(),
+    resolveSecretKey(),
+  ]);
+
+  const result: AccountsPageResult = await fetchAccountsPage(
+    baseUrl,
+    page,
+    perPage,
+  );
 
   const accounts = result.items.map((item) =>
     decryptAccountItem(item, secretKey),
