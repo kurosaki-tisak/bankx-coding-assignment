@@ -60,6 +60,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Need recent history for release notes (up to 10 commits)
+          fetch-depth: 10
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -167,6 +170,22 @@ jobs:
           echo "Found APK: ${APK_PATH}"
           ls -lh "${APK_PATH}"
 
+      - name: Build release notes from recent commits
+        id: notes
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          {
+            echo "Commit:"
+            git log -n 10 --pretty=format:'- %s' --no-merges
+            echo
+          } > /tmp/release-notes.txt
+          echo "notes<<EOF" >> "${GITHUB_OUTPUT}"
+          cat /tmp/release-notes.txt >> "${GITHUB_OUTPUT}"
+          echo "EOF" >> "${GITHUB_OUTPUT}"
+          echo "----- release notes -----"
+          cat /tmp/release-notes.txt
+
       - name: Upload to Firebase App Distribution
         uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
@@ -176,5 +195,5 @@ jobs:
           file: ${{ steps.apk.outputs.path }}
           releaseNotes: |
             KakaoBankApp Android (expo prebuild)
-            Commit: ${{ github.sha }}
+            ${{ steps.notes.outputs.notes }}
             Ref: ${{ github.ref_name }}
