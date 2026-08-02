@@ -6,10 +6,5 @@
     "firebase:projects": "npx -y firebase-tools@latest projects:list",
     "firebase:use": "npx -y firebase-tools@latest use bankx-code-assignment",
     "firebase:apps": "npx -y firebase-tools@latest apps:list --project bankx-code-assignment"
-  },
-  "dependencies": {
-    "expo": "^57.0.9",
-    "react": "19.2.3",
-    "react-native": "0.86.2"
   }
 }
