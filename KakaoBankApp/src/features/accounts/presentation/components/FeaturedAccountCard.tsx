@@ -1,4 +1,5 @@
-import { memo } from 'react';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { memo, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Account } from '@/src/features/accounts/data/models/account';
@@ -29,7 +30,7 @@ type Palette = {
   secondaryText: string;
   chipBackground: string;
   chipText: string;
-  iconGlyph: string;
+  iconName: ComponentProps<typeof MaterialIcons>['name'];
   showCardButton: boolean;
   showTransferButton: boolean;
 };
@@ -43,7 +44,7 @@ function paletteFor(variant: FeaturedCardVariant): Palette {
         secondaryText: colors.text.secondary,
         chipBackground: 'rgba(25,25,25,0.08)',
         chipText: colors.text.primary,
-        iconGlyph: 'B',
+        iconName: 'account-balance-wallet',
         showCardButton: true,
         showTransferButton: true,
       };
@@ -54,7 +55,7 @@ function paletteFor(variant: FeaturedCardVariant): Palette {
         secondaryText: colors.textOnDark.secondary,
         chipBackground: colors.chip.onDark,
         chipText: colors.text.inverse,
-        iconGlyph: '🏛',
+        iconName: 'account-balance',
         showCardButton: false,
         showTransferButton: true,
       };
@@ -66,7 +67,7 @@ function paletteFor(variant: FeaturedCardVariant): Palette {
         secondaryText: colors.textOnDark.secondary,
         chipBackground: colors.chip.onDark,
         chipText: colors.text.inverse,
-        iconGlyph: '☺',
+        iconName: 'people',
         showCardButton: false,
         showTransferButton: false,
       };
@@ -103,7 +104,11 @@ export const FeaturedAccountCard = memo(function FeaturedAccountCard({
       <View style={styles.topRow}>
         <View style={styles.titleGroup}>
           <View style={styles.iconCircle}>
-            <Text style={styles.iconGlyph}>{palette.iconGlyph}</Text>
+            <MaterialIcons
+              name={palette.iconName}
+              size={typography.size.title}
+              color={colors.text.primary}
+            />
           </View>
           <View style={styles.nameRow}>
             <Text
@@ -121,18 +126,13 @@ export const FeaturedAccountCard = memo(function FeaturedAccountCard({
               onPress={() => onToggleFavorite?.(account)}
               style={({ pressed }) => pressed && styles.pressed}
             >
-              <Text
-                style={[
-                  styles.star,
-                  {
-                    color: isFavorite
-                      ? colors.text.primary
-                      : palette.secondaryText,
-                  },
-                ]}
-              >
-                {isFavorite ? '★' : '☆'}
-              </Text>
+              <MaterialIcons
+                name={isFavorite ? 'star' : 'star-border'}
+                size={typography.size.subtitle}
+                color={
+                  isFavorite ? colors.text.primary : palette.secondaryText
+                }
+              />
             </Pressable>
           </View>
         </View>
@@ -144,9 +144,11 @@ export const FeaturedAccountCard = memo(function FeaturedAccountCard({
           onPress={() => onMorePress?.(account)}
           style={({ pressed }) => [styles.moreHit, pressed && styles.pressed]}
         >
-          <Text style={[styles.moreDots, { color: palette.secondaryText }]}>
-            ···
-          </Text>
+          <MaterialIcons
+            name="more-horiz"
+            size={typography.size.title}
+            color={palette.secondaryText}
+          />
         </Pressable>
       </View>
 
@@ -226,11 +228,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconGlyph: {
-    color: colors.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
-  },
   nameRow: {
     flex: 1,
     flexDirection: 'row',
@@ -242,20 +239,11 @@ const styles = StyleSheet.create({
     fontSize: typography.size.bodyLarge,
     fontWeight: typography.weight.medium,
   },
-  star: {
-    fontSize: typography.size.subtitle,
-    fontWeight: typography.weight.bold,
-  },
   moreHit: {
     width: size.moreHit,
     height: size.moreHit,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  moreDots: {
-    fontSize: typography.size.title,
-    fontWeight: typography.weight.bold,
-    letterSpacing: 1,
   },
   balanceRow: {
     flexDirection: 'row',

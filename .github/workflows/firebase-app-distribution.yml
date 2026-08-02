@@ -155,8 +155,8 @@ jobs:
           # Job env + .env must be present so Metro / Expo can resolve EXPO_PUBLIC_*
           ./gradlew assembleRelease --no-daemon
         env:
-          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-XX:MaxMetaspaceSize=512m -Xmx2g"
-          JAVA_OPTS: "-XX:MaxMetaspaceSize=512m -Xmx2g"
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"
+          JAVA_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=1024m"
 
       - name: Locate APK
         id: apk
