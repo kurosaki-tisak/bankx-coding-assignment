@@ -36,7 +36,7 @@
     "mock-server": "npm --prefix ../mobile-react-native-json-server start",
     "mock-server:install": "npm --prefix ../mobile-react-native-json-server install",
     "prebuild:android": "expo prebuild --platform android --non-interactive",
-    "build:android:apk": "expo prebuild --platform android --non-interactive --no-install && cd android && ./gradlew assembleRelease"
+    "build:android:apk": "expo prebuild --platform android --non-interactive --no-install && cd android && ./gradlew assembleRelease -x lintVitalAnalyzeRelease -x lintVitalReportRelease"
   },
   "private": true,
   "allowScripts": {

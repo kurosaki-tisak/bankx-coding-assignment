@@ -40,7 +40,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "./plugins/withAndroidReleaseBuildFixes"
     ],
     "experiments": {
       "typedRoutes": true
