@@ -39,6 +39,10 @@ export type AccountListProps = {
   onTransferPress?: (account: Account) => void;
   onToggleFavorite?: (account: Account) => void;
   isFavorite?: (accountId: string | number) => boolean;
+  getFeaturedAccountNumberLabel: (account: Account) => string;
+  areFeaturedAccountNumbersRevealed: boolean;
+  isBiometricPromptPending?: boolean;
+  onToggleFeaturedAccountNumbersVisibility?: () => void;
   userName?: string;
   error?: string | null;
 };
@@ -52,6 +56,10 @@ type ListHeaderProps = {
   onAccountPress?: (account: Account) => void;
   onTransferPress?: (account: Account) => void;
   onToggleFavorite?: (account: Account) => void;
+  getFeaturedAccountNumberLabel: (account: Account) => string;
+  areFeaturedAccountNumbersRevealed: boolean;
+  isBiometricPromptPending?: boolean;
+  onToggleFeaturedAccountNumbersVisibility?: () => void;
 };
 
 const ListHeader = memo(function ListHeader({
@@ -63,6 +71,10 @@ const ListHeader = memo(function ListHeader({
   onAccountPress,
   onTransferPress,
   onToggleFavorite,
+  getFeaturedAccountNumberLabel,
+  areFeaturedAccountNumbersRevealed,
+  isBiometricPromptPending,
+  onToggleFeaturedAccountNumbersVisibility,
 }: ListHeaderProps) {
   return (
     <View style={styles.headerBlock}>
@@ -116,11 +128,17 @@ const ListHeader = memo(function ListHeader({
         <FeaturedAccountCard
           account={favoriteAccount}
           variant="favorite"
+          accountNumberLabel={getFeaturedAccountNumberLabel(favoriteAccount)}
+          areAccountNumbersRevealed={areFeaturedAccountNumbersRevealed}
+          isBiometricPromptPending={isBiometricPromptPending}
           onPress={onAccountPress}
           onTransferPress={onTransferPress}
           onCardPress={onAccountPress}
           onMorePress={onAccountPress}
           onToggleFavorite={onToggleFavorite}
+          onToggleAccountNumberVisibility={
+            onToggleFeaturedAccountNumbersVisibility
+          }
         />
       ) : (
         <View style={styles.emptyFavorite}>
@@ -135,10 +153,18 @@ const ListHeader = memo(function ListHeader({
         <FeaturedAccountCard
           account={topBalanceAccounts[0]}
           variant="top1"
+          accountNumberLabel={getFeaturedAccountNumberLabel(
+            topBalanceAccounts[0],
+          )}
+          areAccountNumbersRevealed={areFeaturedAccountNumbersRevealed}
+          isBiometricPromptPending={isBiometricPromptPending}
           onPress={onAccountPress}
           onTransferPress={onTransferPress}
           onMorePress={onAccountPress}
           onToggleFavorite={onToggleFavorite}
+          onToggleAccountNumberVisibility={
+            onToggleFeaturedAccountNumbersVisibility
+          }
         />
       ) : null}
 
@@ -146,9 +172,17 @@ const ListHeader = memo(function ListHeader({
         <FeaturedAccountCard
           account={topBalanceAccounts[1]}
           variant="top2"
+          accountNumberLabel={getFeaturedAccountNumberLabel(
+            topBalanceAccounts[1],
+          )}
+          areAccountNumbersRevealed={areFeaturedAccountNumbersRevealed}
+          isBiometricPromptPending={isBiometricPromptPending}
           onPress={onAccountPress}
           onMorePress={onAccountPress}
           onToggleFavorite={onToggleFavorite}
+          onToggleAccountNumberVisibility={
+            onToggleFeaturedAccountNumbersVisibility
+          }
         />
       ) : null}
 
@@ -185,6 +219,10 @@ export function AccountList({
   onTransferPress,
   onToggleFavorite,
   isFavorite,
+  getFeaturedAccountNumberLabel,
+  areFeaturedAccountNumbersRevealed,
+  isBiometricPromptPending,
+  onToggleFeaturedAccountNumbersVisibility,
   userName = 'คุณลูกค้า',
   error,
 }: AccountListProps) {
@@ -215,6 +253,12 @@ export function AccountList({
       onAccountPress={onAccountPress}
       onTransferPress={onTransferPress}
       onToggleFavorite={onToggleFavorite}
+      getFeaturedAccountNumberLabel={getFeaturedAccountNumberLabel}
+      areFeaturedAccountNumbersRevealed={areFeaturedAccountNumbersRevealed}
+      isBiometricPromptPending={isBiometricPromptPending}
+      onToggleFeaturedAccountNumbersVisibility={
+        onToggleFeaturedAccountNumbersVisibility
+      }
     />
   );
 

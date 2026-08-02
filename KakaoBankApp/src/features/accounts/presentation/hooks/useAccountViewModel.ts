@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, AppState, type AppStateStatus } from 'react-native';
 
 import type { Account } from '../../data/models/account';
 import { ACCOUNTS_PER_PAGE } from '../../data/models/accountConfig';
+import { resolveAccountNumberLabel } from '../../data/models/accountNumberDisplay';
+import { authenticateWithBiometrics } from '../../data/repositories/biometricAuthRepository';
 import {
   fetchDecryptedAccountById,
   fetchDecryptedAccountsPage,
@@ -25,10 +27,14 @@ export type UseAccountViewModelResult = {
   page: number;
   perPage: number;
   favoriteAccountId: string | null;
+  areFeaturedAccountNumbersRevealed: boolean;
+  isBiometricPromptPending: boolean;
   refresh: () => Promise<void>;
   loadMore: () => Promise<void>;
   toggleFavorite: (account: Account) => Promise<void>;
   isFavorite: (accountId: string | number) => boolean;
+  getFeaturedAccountNumberLabel: (account: Account) => string;
+  toggleFeaturedAccountNumbersVisibility: () => Promise<void>;
 };
 
 function sameId(a: string | number, b: string | number): boolean {
@@ -36,7 +42,8 @@ function sameId(a: string | number, b: string | number): boolean {
 }
 
 /**
- * Accounts ViewModel — favourite + top balances + View All pagination.
+ * Accounts ViewModel — favourite + top balances + View All pagination
+ * + biometric-gated reveal of featured account numbers.
  */
 export function useAccountViewModel(): UseAccountViewModelResult {
   const perPage = ACCOUNTS_PER_PAGE;
@@ -51,10 +58,29 @@ export function useAccountViewModel(): UseAccountViewModelResult {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [areFeaturedAccountNumbersRevealed, setAreFeaturedAccountNumbersRevealed] =
+    useState(false);
+  const [isBiometricPromptPending, setIsBiometricPromptPending] =
+    useState(false);
 
   const isFetchingRef = useRef(false);
   const hasMoreRef = useRef(true);
   const pageRef = useRef(1);
+
+  const hideFeaturedAccountNumbers = useCallback(() => {
+    setAreFeaturedAccountNumbersRevealed(false);
+  }, []);
+
+  useEffect(() => {
+    const onAppStateChange = (nextState: AppStateStatus) => {
+      if (nextState !== 'active') {
+        hideFeaturedAccountNumbers();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', onAppStateChange);
+    return () => subscription.remove();
+  }, [hideFeaturedAccountNumbers]);
 
   const resolveFavoriteAccount = useCallback(
     async (
@@ -88,8 +114,9 @@ export function useAccountViewModel(): UseAccountViewModelResult {
 
       setFavoriteAccount(favorite);
       setTopBalanceAccounts(topExcludingFavorite);
+      hideFeaturedAccountNumbers();
     },
-    [resolveFavoriteAccount],
+    [hideFeaturedAccountNumbers, resolveFavoriteAccount],
   );
 
   const loadPage = useCallback(
@@ -195,14 +222,67 @@ export function useAccountViewModel(): UseAccountViewModelResult {
           .filter((item) => (nextId ? !sameId(item.id, nextId) : true))
           .slice(0, 2);
         setTopBalanceAccounts(topExcludingFavorite);
+        hideFeaturedAccountNumbers();
       } catch (err) {
         const message =
           err instanceof Error ? err.message : 'บันทึกบัญชีโปรดไม่สำเร็จ';
         Alert.alert('เกิดข้อผิดพลาด', message);
       }
     },
-    [isFavorite],
+    [hideFeaturedAccountNumbers, isFavorite],
   );
+
+  const getFeaturedAccountNumberLabel = useCallback(
+    (account: Account) =>
+      resolveAccountNumberLabel(
+        account.account_number,
+        areFeaturedAccountNumbersRevealed,
+      ),
+    [areFeaturedAccountNumbersRevealed],
+  );
+
+  const toggleFeaturedAccountNumbersVisibility = useCallback(async () => {
+    if (areFeaturedAccountNumbersRevealed) {
+      hideFeaturedAccountNumbers();
+      return;
+    }
+
+    if (isBiometricPromptPending) {
+      return;
+    }
+
+    setIsBiometricPromptPending(true);
+    try {
+      const result = await authenticateWithBiometrics(
+        'ยืนยันตัวตนด้วยชีวมิติเพื่อดูเลขบัญชี',
+      );
+
+      if (result.success) {
+        setAreFeaturedAccountNumbersRevealed(true);
+        return;
+      }
+
+      if (result.reason === 'cancelled') {
+        return;
+      }
+
+      if (result.reason === 'unavailable') {
+        Alert.alert(
+          'ไม่สามารถยืนยันตัวตนได้',
+          'อุปกรณ์นี้ยังไม่ได้ตั้งค่า Face ID / Touch ID / ลายนิ้วมือ',
+        );
+        return;
+      }
+
+      Alert.alert('ยืนยันตัวตนไม่สำเร็จ', 'กรุณาลองอีกครั้ง');
+    } finally {
+      setIsBiometricPromptPending(false);
+    }
+  }, [
+    areFeaturedAccountNumbersRevealed,
+    hideFeaturedAccountNumbers,
+    isBiometricPromptPending,
+  ]);
 
   return {
     favoriteAccount,
@@ -216,9 +296,13 @@ export function useAccountViewModel(): UseAccountViewModelResult {
     page,
     perPage,
     favoriteAccountId,
+    areFeaturedAccountNumbersRevealed,
+    isBiometricPromptPending,
     refresh,
     loadMore,
     toggleFavorite,
     isFavorite,
+    getFeaturedAccountNumberLabel,
+    toggleFeaturedAccountNumbersVisibility,
   };
 }
