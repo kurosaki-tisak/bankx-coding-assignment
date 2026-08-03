@@ -150,6 +150,8 @@ export const size = {
   tabIconHit: 28,
   tabBarContentHeight: 56,
   tabBarMinBottomInset: 16,
+  /** Android 3-button / gesture nav bar when WindowInsets report 0 */
+  tabBarAndroidNavInset: 48,
 } as const;
 
 /** KakaoBank home is mostly flat — keep elevation subtle */

@@ -1,18 +1,13 @@
 import { StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, size, spacing, typography } from '@/src/core/theme';
+import { colors, spacing, typography } from '@/src/core/theme';
 import type { TabRouteName } from '@/src/features/navigation/data/models/tab';
 import { useTabBarViewModel } from '@/src/features/navigation/presentation/hooks/useTabBarViewModel';
 import { TabBarIcon } from '@/src/features/navigation/presentation/components/TabBarIcon';
 
 export default function TabLayout() {
-  const { tabs } = useTabBarViewModel();
-  const insets = useSafeAreaInsets();
-
-  const bottomInset = Math.max(insets.bottom, size.tabBarMinBottomInset);
-  const tabBarHeight = size.tabBarContentHeight + bottomInset;
+  const { tabs, tabBarBottomInset, tabBarHeight } = useTabBarViewModel();
 
   const tabByRoute = Object.fromEntries(
     tabs.map((tab) => [tab.route, tab]),
@@ -20,6 +15,8 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      // Force BottomTabBar to use the resolved inset (Android system nav).
+      safeAreaInsets={{ bottom: tabBarBottomInset }}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.icon.active,
@@ -37,9 +34,10 @@ export default function TabLayout() {
           backgroundColor: colors.surface,
           borderTopColor: colors.border.subtle,
           borderTopWidth: StyleSheet.hairlineWidth,
+          // Custom height replaces getTabBarHeight's auto inset — include it.
           height: tabBarHeight,
+          paddingBottom: tabBarBottomInset,
           paddingTop: spacing.xs,
-          paddingBottom: bottomInset,
           elevation: 0,
           shadowOpacity: 0,
         },
