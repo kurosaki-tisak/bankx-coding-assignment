@@ -1,5 +1,3 @@
-import { Alert } from 'react-native';
-
 import type {
   AccountApiItem,
   AccountsPageResult,
@@ -75,10 +73,9 @@ export async function fetchAccountsPage(
     const response = await fetch(url.toString());
     return parseAccountsResponse(response);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'โหลดข้อมูลบัญชีไม่สำเร็จ';
-    Alert.alert('เกิดข้อผิดพลาด', message);
-    throw error;
+    throw error instanceof Error
+      ? error
+      : new Error('โหลดข้อมูลบัญชีไม่สำเร็จ');
   }
 }
 
@@ -100,10 +97,9 @@ export async function fetchTopAccountsByBalance(
     const result = await parseAccountsResponse(response);
     return result.items;
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'โหลดบัญชียอดสูงไม่สำเร็จ';
-    Alert.alert('เกิดข้อผิดพลาด', message);
-    throw error;
+    throw error instanceof Error
+      ? error
+      : new Error('โหลดบัญชียอดสูงไม่สำเร็จ');
   }
 }
 
@@ -131,9 +127,8 @@ export async function fetchAccountById(
     }
     return payload;
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'โหลดบัญชีโปรดไม่สำเร็จ';
-    Alert.alert('เกิดข้อผิดพลาด', message);
-    throw error;
+    throw error instanceof Error
+      ? error
+      : new Error('โหลดบัญชีโปรดไม่สำเร็จ');
   }
 }

@@ -1,5 +1,4 @@
 import { doc, getDoc } from 'firebase/firestore';
-import { Alert } from 'react-native';
 
 import { getFirestoreDb } from '@/src/core/firebase';
 
@@ -39,12 +38,9 @@ export async function fetchAccountsApiUrl(): Promise<string> {
     cachedAccountsApiUrl = value.trim();
     return cachedAccountsApiUrl;
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : 'Failed to fetch accounts API endpoint';
-    Alert.alert('Firestore Error', message);
-    throw error;
+    throw error instanceof Error
+      ? error
+      : new Error('Failed to fetch accounts API endpoint');
   }
 }
 

@@ -1,5 +1,4 @@
 import { doc, getDoc } from 'firebase/firestore';
-import { Alert } from 'react-native';
 
 import { getFirestoreSecretPath } from '@/src/core/env';
 import { getFirestoreDb } from '@/src/core/firebase';
@@ -33,9 +32,8 @@ export async function fetchEncryptionSecretKey(): Promise<string> {
 
     return secretKey;
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to fetch encryption key';
-    Alert.alert('Firestore Error', message);
-    throw error;
+    throw error instanceof Error
+      ? error
+      : new Error('Failed to fetch encryption key');
   }
 }
