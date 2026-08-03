@@ -27,14 +27,15 @@ export type UseAccountViewModelResult = {
   page: number;
   perPage: number;
   favoriteAccountId: string | null;
-  areFeaturedAccountNumbersRevealed: boolean;
   isBiometricPromptPending: boolean;
   refresh: () => Promise<void>;
   loadMore: () => Promise<void>;
   toggleFavorite: (account: Account) => Promise<void>;
   isFavorite: (accountId: string | number) => boolean;
+  isFeaturedAccountNumberRevealed: (accountId: string | number) => boolean;
+  isBiometricPromptPendingFor: (accountId: string | number) => boolean;
   getFeaturedAccountNumberLabel: (account: Account) => string;
-  toggleFeaturedAccountNumbersVisibility: () => Promise<void>;
+  toggleFeaturedAccountNumberVisibility: (account: Account) => Promise<void>;
 };
 
 function sameId(a: string | number, b: string | number): boolean {
@@ -58,29 +59,33 @@ export function useAccountViewModel(): UseAccountViewModelResult {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [areFeaturedAccountNumbersRevealed, setAreFeaturedAccountNumbersRevealed] =
-    useState(false);
-  const [isBiometricPromptPending, setIsBiometricPromptPending] =
-    useState(false);
+  /** Account ids whose featured account numbers are currently revealed. */
+  const [revealedAccountNumberIds, setRevealedAccountNumberIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
+  const [pendingBiometricAccountId, setPendingBiometricAccountId] = useState<
+    string | null
+  >(null);
 
   const isFetchingRef = useRef(false);
   const hasMoreRef = useRef(true);
   const pageRef = useRef(1);
 
-  const hideFeaturedAccountNumbers = useCallback(() => {
-    setAreFeaturedAccountNumbersRevealed(false);
+  const hideAllFeaturedAccountNumbers = useCallback(() => {
+    setRevealedAccountNumberIds(new Set());
+    setPendingBiometricAccountId(null);
   }, []);
 
   useEffect(() => {
     const onAppStateChange = (nextState: AppStateStatus) => {
       if (nextState !== 'active') {
-        hideFeaturedAccountNumbers();
+        hideAllFeaturedAccountNumbers();
       }
     };
 
     const subscription = AppState.addEventListener('change', onAppStateChange);
     return () => subscription.remove();
-  }, [hideFeaturedAccountNumbers]);
+  }, [hideAllFeaturedAccountNumbers]);
 
   const resolveFavoriteAccount = useCallback(
     async (
@@ -114,9 +119,9 @@ export function useAccountViewModel(): UseAccountViewModelResult {
 
       setFavoriteAccount(favorite);
       setTopBalanceAccounts(topExcludingFavorite);
-      hideFeaturedAccountNumbers();
+      hideAllFeaturedAccountNumbers();
     },
-    [hideFeaturedAccountNumbers, resolveFavoriteAccount],
+    [hideAllFeaturedAccountNumbers, resolveFavoriteAccount],
   );
 
   const loadPage = useCallback(
@@ -222,67 +227,89 @@ export function useAccountViewModel(): UseAccountViewModelResult {
           .filter((item) => (nextId ? !sameId(item.id, nextId) : true))
           .slice(0, 2);
         setTopBalanceAccounts(topExcludingFavorite);
-        hideFeaturedAccountNumbers();
+        hideAllFeaturedAccountNumbers();
       } catch (err) {
         const message =
           err instanceof Error ? err.message : 'บันทึกบัญชีโปรดไม่สำเร็จ';
         Alert.alert('เกิดข้อผิดพลาด', message);
       }
     },
-    [hideFeaturedAccountNumbers, isFavorite],
+    [hideAllFeaturedAccountNumbers, isFavorite],
+  );
+
+  const isFeaturedAccountNumberRevealed = useCallback(
+    (accountId: string | number) =>
+      revealedAccountNumberIds.has(String(accountId)),
+    [revealedAccountNumberIds],
+  );
+
+  const isBiometricPromptPendingFor = useCallback(
+    (accountId: string | number) =>
+      pendingBiometricAccountId !== null &&
+      sameId(pendingBiometricAccountId, accountId),
+    [pendingBiometricAccountId],
   );
 
   const getFeaturedAccountNumberLabel = useCallback(
     (account: Account) =>
       resolveAccountNumberLabel(
         account.account_number,
-        areFeaturedAccountNumbersRevealed,
+        revealedAccountNumberIds.has(String(account.id)),
       ),
-    [areFeaturedAccountNumbersRevealed],
+    [revealedAccountNumberIds],
   );
 
-  const toggleFeaturedAccountNumbersVisibility = useCallback(async () => {
-    if (areFeaturedAccountNumbersRevealed) {
-      hideFeaturedAccountNumbers();
-      return;
-    }
+  const toggleFeaturedAccountNumberVisibility = useCallback(
+    async (account: Account) => {
+      const accountId = String(account.id);
 
-    if (isBiometricPromptPending) {
-      return;
-    }
-
-    setIsBiometricPromptPending(true);
-    try {
-      const result = await authenticateWithBiometrics(
-        'ยืนยันตัวตนด้วยชีวมิติเพื่อดูเลขบัญชี',
-      );
-
-      if (result.success) {
-        setAreFeaturedAccountNumbersRevealed(true);
+      if (revealedAccountNumberIds.has(accountId)) {
+        setRevealedAccountNumberIds((prev) => {
+          const next = new Set(prev);
+          next.delete(accountId);
+          return next;
+        });
         return;
       }
 
-      if (result.reason === 'cancelled') {
+      if (pendingBiometricAccountId !== null) {
         return;
       }
 
-      if (result.reason === 'unavailable') {
-        Alert.alert(
-          'ไม่สามารถยืนยันตัวตนได้',
-          'อุปกรณ์นี้ยังไม่ได้ตั้งค่า Face ID / Touch ID / ลายนิ้วมือ',
+      setPendingBiometricAccountId(accountId);
+      try {
+        const result = await authenticateWithBiometrics(
+          'ยืนยันตัวตนด้วยชีวมิติเพื่อดูเลขบัญชี',
         );
-        return;
-      }
 
-      Alert.alert('ยืนยันตัวตนไม่สำเร็จ', 'กรุณาลองอีกครั้ง');
-    } finally {
-      setIsBiometricPromptPending(false);
-    }
-  }, [
-    areFeaturedAccountNumbersRevealed,
-    hideFeaturedAccountNumbers,
-    isBiometricPromptPending,
-  ]);
+        if (result.success) {
+          setRevealedAccountNumberIds((prev) => {
+            const next = new Set(prev);
+            next.add(accountId);
+            return next;
+          });
+          return;
+        }
+
+        if (result.reason === 'cancelled') {
+          return;
+        }
+
+        if (result.reason === 'unavailable') {
+          Alert.alert(
+            'ไม่สามารถยืนยันตัวตนได้',
+            'อุปกรณ์นี้ยังไม่ได้ตั้งค่า Face ID / Touch ID / ลายนิ้วมือ',
+          );
+          return;
+        }
+
+        Alert.alert('ยืนยันตัวตนไม่สำเร็จ', 'กรุณาลองอีกครั้ง');
+      } finally {
+        setPendingBiometricAccountId(null);
+      }
+    },
+    [pendingBiometricAccountId, revealedAccountNumberIds],
+  );
 
   return {
     favoriteAccount,
@@ -296,13 +323,14 @@ export function useAccountViewModel(): UseAccountViewModelResult {
     page,
     perPage,
     favoriteAccountId,
-    areFeaturedAccountNumbersRevealed,
-    isBiometricPromptPending,
+    isBiometricPromptPending: pendingBiometricAccountId !== null,
     refresh,
     loadMore,
     toggleFavorite,
     isFavorite,
+    isFeaturedAccountNumberRevealed,
+    isBiometricPromptPendingFor,
     getFeaturedAccountNumberLabel,
-    toggleFeaturedAccountNumbersVisibility,
+    toggleFeaturedAccountNumberVisibility,
   };
 }

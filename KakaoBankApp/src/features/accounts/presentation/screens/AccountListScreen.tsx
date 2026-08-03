@@ -23,9 +23,9 @@ export default function AccountListScreen() {
     toggleFavorite,
     isFavorite,
     getFeaturedAccountNumberLabel,
-    areFeaturedAccountNumbersRevealed,
-    isBiometricPromptPending,
-    toggleFeaturedAccountNumbersVisibility,
+    isFeaturedAccountNumberRevealed,
+    isBiometricPromptPendingFor,
+    toggleFeaturedAccountNumberVisibility,
   } = useAccountViewModel();
 
   const handleAccountPress = useCallback((account: Account) => {
@@ -61,10 +61,10 @@ export default function AccountListScreen() {
       onToggleFavorite={toggleFavorite}
       isFavorite={isFavorite}
       getFeaturedAccountNumberLabel={getFeaturedAccountNumberLabel}
-      areFeaturedAccountNumbersRevealed={areFeaturedAccountNumbersRevealed}
-      isBiometricPromptPending={isBiometricPromptPending}
-      onToggleFeaturedAccountNumbersVisibility={
-        toggleFeaturedAccountNumbersVisibility
+      isFeaturedAccountNumberRevealed={isFeaturedAccountNumberRevealed}
+      isBiometricPromptPendingFor={isBiometricPromptPendingFor}
+      onToggleFeaturedAccountNumberVisibility={
+        toggleFeaturedAccountNumberVisibility
       }
       userName={USER_DISPLAY_NAME}
       error={error}

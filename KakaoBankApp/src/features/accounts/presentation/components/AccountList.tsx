@@ -40,9 +40,9 @@ export type AccountListProps = {
   onToggleFavorite?: (account: Account) => void;
   isFavorite?: (accountId: string | number) => boolean;
   getFeaturedAccountNumberLabel: (account: Account) => string;
-  areFeaturedAccountNumbersRevealed: boolean;
-  isBiometricPromptPending?: boolean;
-  onToggleFeaturedAccountNumbersVisibility?: () => void;
+  isFeaturedAccountNumberRevealed: (accountId: string | number) => boolean;
+  isBiometricPromptPendingFor?: (accountId: string | number) => boolean;
+  onToggleFeaturedAccountNumberVisibility?: (account: Account) => void;
   userName?: string;
   error?: string | null;
 };
@@ -57,9 +57,9 @@ type ListHeaderProps = {
   onTransferPress?: (account: Account) => void;
   onToggleFavorite?: (account: Account) => void;
   getFeaturedAccountNumberLabel: (account: Account) => string;
-  areFeaturedAccountNumbersRevealed: boolean;
-  isBiometricPromptPending?: boolean;
-  onToggleFeaturedAccountNumbersVisibility?: () => void;
+  isFeaturedAccountNumberRevealed: (accountId: string | number) => boolean;
+  isBiometricPromptPendingFor?: (accountId: string | number) => boolean;
+  onToggleFeaturedAccountNumberVisibility?: (account: Account) => void;
 };
 
 const ListHeader = memo(function ListHeader({
@@ -72,9 +72,9 @@ const ListHeader = memo(function ListHeader({
   onTransferPress,
   onToggleFavorite,
   getFeaturedAccountNumberLabel,
-  areFeaturedAccountNumbersRevealed,
-  isBiometricPromptPending,
-  onToggleFeaturedAccountNumbersVisibility,
+  isFeaturedAccountNumberRevealed,
+  isBiometricPromptPendingFor,
+  onToggleFeaturedAccountNumberVisibility,
 }: ListHeaderProps) {
   return (
     <View style={styles.headerBlock}>
@@ -129,15 +129,19 @@ const ListHeader = memo(function ListHeader({
           account={favoriteAccount}
           variant="favorite"
           accountNumberLabel={getFeaturedAccountNumberLabel(favoriteAccount)}
-          areAccountNumbersRevealed={areFeaturedAccountNumbersRevealed}
-          isBiometricPromptPending={isBiometricPromptPending}
+          areAccountNumbersRevealed={isFeaturedAccountNumberRevealed(
+            favoriteAccount.id,
+          )}
+          isBiometricPromptPending={isBiometricPromptPendingFor?.(
+            favoriteAccount.id,
+          )}
           onPress={onAccountPress}
           onTransferPress={onTransferPress}
           onCardPress={onAccountPress}
           onMorePress={onAccountPress}
           onToggleFavorite={onToggleFavorite}
           onToggleAccountNumberVisibility={
-            onToggleFeaturedAccountNumbersVisibility
+            onToggleFeaturedAccountNumberVisibility
           }
         />
       ) : (
@@ -156,14 +160,18 @@ const ListHeader = memo(function ListHeader({
           accountNumberLabel={getFeaturedAccountNumberLabel(
             topBalanceAccounts[0],
           )}
-          areAccountNumbersRevealed={areFeaturedAccountNumbersRevealed}
-          isBiometricPromptPending={isBiometricPromptPending}
+          areAccountNumbersRevealed={isFeaturedAccountNumberRevealed(
+            topBalanceAccounts[0].id,
+          )}
+          isBiometricPromptPending={isBiometricPromptPendingFor?.(
+            topBalanceAccounts[0].id,
+          )}
           onPress={onAccountPress}
           onTransferPress={onTransferPress}
           onMorePress={onAccountPress}
           onToggleFavorite={onToggleFavorite}
           onToggleAccountNumberVisibility={
-            onToggleFeaturedAccountNumbersVisibility
+            onToggleFeaturedAccountNumberVisibility
           }
         />
       ) : null}
@@ -175,13 +183,17 @@ const ListHeader = memo(function ListHeader({
           accountNumberLabel={getFeaturedAccountNumberLabel(
             topBalanceAccounts[1],
           )}
-          areAccountNumbersRevealed={areFeaturedAccountNumbersRevealed}
-          isBiometricPromptPending={isBiometricPromptPending}
+          areAccountNumbersRevealed={isFeaturedAccountNumberRevealed(
+            topBalanceAccounts[1].id,
+          )}
+          isBiometricPromptPending={isBiometricPromptPendingFor?.(
+            topBalanceAccounts[1].id,
+          )}
           onPress={onAccountPress}
           onMorePress={onAccountPress}
           onToggleFavorite={onToggleFavorite}
           onToggleAccountNumberVisibility={
-            onToggleFeaturedAccountNumbersVisibility
+            onToggleFeaturedAccountNumberVisibility
           }
         />
       ) : null}
@@ -220,9 +232,9 @@ export function AccountList({
   onToggleFavorite,
   isFavorite,
   getFeaturedAccountNumberLabel,
-  areFeaturedAccountNumbersRevealed,
-  isBiometricPromptPending,
-  onToggleFeaturedAccountNumbersVisibility,
+  isFeaturedAccountNumberRevealed,
+  isBiometricPromptPendingFor,
+  onToggleFeaturedAccountNumberVisibility,
   userName = 'คุณลูกค้า',
   error,
 }: AccountListProps) {
@@ -254,10 +266,10 @@ export function AccountList({
       onTransferPress={onTransferPress}
       onToggleFavorite={onToggleFavorite}
       getFeaturedAccountNumberLabel={getFeaturedAccountNumberLabel}
-      areFeaturedAccountNumbersRevealed={areFeaturedAccountNumbersRevealed}
-      isBiometricPromptPending={isBiometricPromptPending}
-      onToggleFeaturedAccountNumbersVisibility={
-        onToggleFeaturedAccountNumbersVisibility
+      isFeaturedAccountNumberRevealed={isFeaturedAccountNumberRevealed}
+      isBiometricPromptPendingFor={isBiometricPromptPendingFor}
+      onToggleFeaturedAccountNumberVisibility={
+        onToggleFeaturedAccountNumberVisibility
       }
     />
   );

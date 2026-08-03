@@ -25,7 +25,7 @@ export type FeaturedAccountCardProps = {
   onCardPress?: (account: Account) => void;
   onMorePress?: (account: Account) => void;
   onToggleFavorite?: (account: Account) => void;
-  onToggleAccountNumberVisibility?: () => void;
+  onToggleAccountNumberVisibility?: (account: Account) => void;
 };
 
 type Palette = {
@@ -154,7 +154,7 @@ export const FeaturedAccountCard = memo(function FeaturedAccountCard({
               }
               disabled={isBiometricPromptPending}
               hitSlop={spacing.xs}
-              onPress={() => onToggleAccountNumberVisibility?.()}
+              onPress={() => onToggleAccountNumberVisibility?.(account)}
               style={({ pressed }) => [
                 styles.accountNumberRow,
                 pressed && styles.pressed,
