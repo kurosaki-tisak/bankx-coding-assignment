@@ -107,9 +107,12 @@ runs:
         chmod +x "$ANDROID_DIR/gradlew"
 
         GRADLE_EXTRA=()
-        # Android Lint can crash on generated RN entry points during Release.
+        # Android Lint vital tasks are unreliable with Expo/RN generated entry
+        # points on CI (Gradle 9 validates missing lint report inputs and fails
+        # :app:lintVitalRelease even when analyze/report are skipped).
         if [[ "$VARIANT" == "Release" ]]; then
           GRADLE_EXTRA+=(
+            -x lintVitalRelease
             -x lintVitalAnalyzeRelease
             -x lintVitalReportRelease
           )
