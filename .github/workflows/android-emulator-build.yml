@@ -1,47 +1,58 @@
-# Build Android with `npx expo prebuild` on GitHub Actions,
-# then upload the APK to Firebase App Distribution.
-# Firebase Project ID: bankx-code-assignment
+# Build KakaoBankApp Android APK with `npx expo prebuild`,
+# then upload it as a GitHub Actions artifact (emulator / sideload).
 #
-# Required GitHub Secrets (Repository → Settings → Secrets and variables → Actions):
+# Required GitHub Secrets (same EXPO_PUBLIC_* set as iOS / Firebase workflows):
+#   EXPO_PUBLIC_FIREBASE_API_KEY
+#   EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN
+#   EXPO_PUBLIC_FIREBASE_PROJECT_ID
+#   EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET
+#   EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+#   EXPO_PUBLIC_FIREBASE_APP_ID
+#   EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION
+#   EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT
+#   EXPO_PUBLIC_FIRESTORE_SECRET_FIELD
 #
-#   App / Expo (baked into JS bundle at build time):
-#     EXPO_PUBLIC_FIREBASE_API_KEY
-#     EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN
-#     EXPO_PUBLIC_FIREBASE_PROJECT_ID
-#     EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET
-#     EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-#     EXPO_PUBLIC_FIREBASE_APP_ID
-#     EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION   (e.g. secrets)
-#     EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT     (e.g. encryption)
-#     EXPO_PUBLIC_FIRESTORE_SECRET_FIELD        (e.g. aesKey)
-#
-#   Accounts API URL is loaded at runtime from Firestore:
-#     secrets/endpoint → field accounts
-#
-#   (in code, not secrets): ACCOUNTS_PER_PAGE, USER_DISPLAY_NAME
-#     → src/features/accounts/data/models/accountConfig.ts
-#
-#   Firebase App Distribution:
-#     FIREBASE_SERVICE_ACCOUNT_JSON
-#     FIREBASE_ANDROID_APP_ID
-#
-# Tester group is fixed to "testers".
+# Download after a run:
+#   gh run list --workflow "Android Emulator Build" --limit 5
+#   gh run download <run-id> -n <artifact-name> -D ./artifacts
 
-name: Firebase App Distribution (Android)
+name: Android Emulator Build
 
 on:
   workflow_dispatch:
+    inputs:
+      android_variant:
+        description: Gradle assemble variant
+        required: true
+        default: Debug
+        type: choice
+        options:
+          - Debug
+          - Release
+      artifact_retention_days:
+        description: Artifact retention days
+        required: true
+        default: '7'
+        type: string
   push:
     tags:
       - 'v*'
 
 concurrency:
-  group: firebase-app-distribution-android-${{ github.ref }}
+  group: android-emulator-build-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  ANDROID_VARIANT: Debug
+  ARTIFACT_RETENTION_DAYS: '7'
 
 jobs:
   android:
-    name: Android → Firebase App Distribution
+    name: Android → Artifact
     runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:
@@ -57,13 +68,15 @@ jobs:
       EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION: ${{ secrets.EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION }}
       EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT: ${{ secrets.EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT }}
       EXPO_PUBLIC_FIRESTORE_SECRET_FIELD: ${{ secrets.EXPO_PUBLIC_FIRESTORE_SECRET_FIELD }}
+    outputs:
+      artifact_name: ${{ steps.build.outputs.artifact-name }}
+      artifact_id: ${{ steps.build.outputs.artifact-id }}
+      artifact_url: ${{ steps.build.outputs.artifact-url }}
+      apk_path: ${{ steps.build.outputs.apk-path }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          # Need recent history for release notes (up to 10 commits)
-          fetch-depth: 10
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -126,7 +139,6 @@ jobs:
           } > .env
           echo "Wrote KakaoBankApp/.env ($(wc -l < .env) lines)"
           cut -d= -f1 .env
-          # Fail fast if API key line is empty after write
           if ! grep -q '^EXPO_PUBLIC_FIREBASE_API_KEY=.\+' .env; then
             echo "::error::EXPO_PUBLIC_FIREBASE_API_KEY is empty after writing .env"
             exit 1
@@ -135,9 +147,7 @@ jobs:
       - name: Expo prebuild (Android)
         run: |
           set -euo pipefail
-          # app.config.js embeds EXPO_PUBLIC_* into expo.extra for runtime (expo-constants)
           npx expo prebuild --platform android --non-interactive --no-install
-          # Sanity: ensure config resolved the API key into extra
           node -e "
             const cfg = require('./app.config.js')();
             if (!cfg.extra?.EXPO_PUBLIC_FIREBASE_API_KEY) {
@@ -146,56 +156,46 @@ jobs:
             }
             console.log('app.config extra contains Firebase keys');
           "
+          test -d android
+          echo "Generated android/ project:"
+          ls -la android
 
-      - name: Build release APK
-        working-directory: KakaoBankApp/android
-        run: |
-          set -euo pipefail
-          chmod +x gradlew
-          # Job env + .env must be present so Metro / Expo can resolve EXPO_PUBLIC_*
-          ./gradlew assembleRelease --no-daemon
-        env:
-          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8"
-          JAVA_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=1024m"
-
-      - name: Locate APK
-        id: apk
-        run: |
-          set -euo pipefail
-          APK_PATH="$(find "${GITHUB_WORKSPACE}/KakaoBankApp/android/app/build/outputs/apk" -name '*.apk' -type f | head -n 1)"
-          if [ -z "${APK_PATH}" ]; then
-            echo "No APK found under android/app/build/outputs/apk"
-            find "${GITHUB_WORKSPACE}/KakaoBankApp/android/app/build/outputs" -type f || true
-            exit 1
-          fi
-          echo "path=${APK_PATH}" >> "${GITHUB_OUTPUT}"
-          echo "Found APK: ${APK_PATH}"
-          ls -lh "${APK_PATH}"
-
-      - name: Build release notes from recent commits
-        id: notes
+      - name: Resolve Android inputs
+        id: android-inputs
         working-directory: ${{ github.workspace }}
         run: |
           set -euo pipefail
-          {
-            echo "Commit:"
-            git log -n 10 --pretty=format:'- %s' --no-merges
-            echo
-          } > /tmp/release-notes.txt
-          echo "notes<<EOF" >> "${GITHUB_OUTPUT}"
-          cat /tmp/release-notes.txt >> "${GITHUB_OUTPUT}"
-          echo "EOF" >> "${GITHUB_OUTPUT}"
-          echo "----- release notes -----"
-          cat /tmp/release-notes.txt
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "variant=${{ inputs.android_variant }}" >> "$GITHUB_OUTPUT"
+            echo "retention=${{ inputs.artifact_retention_days }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "variant=${{ env.ANDROID_VARIANT }}" >> "$GITHUB_OUTPUT"
+            echo "retention=${{ env.ARTIFACT_RETENTION_DAYS }}" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Upload to Firebase App Distribution
-        uses: wzieba/Firebase-Distribution-Github-Action@v1
+      - name: Build Android APK
+        id: build
+        uses: ./.github/actions/github-actions/android-build
         with:
-          appId: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
-          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-          groups: testers
-          file: ${{ steps.apk.outputs.path }}
-          releaseNotes: |
-            KakaoBankApp Android (expo prebuild)
-            ${{ steps.notes.outputs.notes }}
-            Ref: ${{ github.ref_name }}
+          working-directory: KakaoBankApp
+          variant: ${{ steps.android-inputs.outputs.variant }}
+          artifact-prefix: kakaobank-android
+          artifact-retention-days: ${{ steps.android-inputs.outputs.retention }}
+          upload-artifact: 'true'
+
+      - name: Job summary
+        working-directory: ${{ github.workspace }}
+        run: |
+          {
+            echo "## Android Emulator Build"
+            echo ""
+            echo "- Variant: \`${{ steps.android-inputs.outputs.variant }}\`"
+            echo "- Artifact name: \`${{ steps.build.outputs.artifact-name }}\`"
+            echo "- Artifact id: \`${{ steps.build.outputs.artifact-id }}\`"
+            echo "- APK path: \`${{ steps.build.outputs.apk-path }}\`"
+            echo ""
+            echo "Download:"
+            echo "\`\`\`bash"
+            echo "gh run download ${{ github.run_id }} -n ${{ steps.build.outputs.artifact-name }} -D ./artifacts"
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"

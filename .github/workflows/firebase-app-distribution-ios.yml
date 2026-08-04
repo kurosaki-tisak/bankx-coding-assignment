@@ -1,0 +1,263 @@
+# Build a signed iOS IPA with `npx expo prebuild` on GitHub Actions,
+# upload it as a GitHub artifact, then publish to Firebase App Distribution.
+# Firebase Project ID: bankx-code-assignment
+#
+# Required GitHub Secrets:
+#
+#   App / Expo (same as Android):
+#     EXPO_PUBLIC_FIREBASE_API_KEY
+#     EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN
+#     EXPO_PUBLIC_FIREBASE_PROJECT_ID
+#     EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET
+#     EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+#     EXPO_PUBLIC_FIREBASE_APP_ID
+#     EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION
+#     EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT
+#     EXPO_PUBLIC_FIRESTORE_SECRET_FIELD
+#
+#   Firebase App Distribution:
+#     FIREBASE_SERVICE_ACCOUNT_JSON
+#     FIREBASE_IOS_APP_ID
+#
+#   Apple code signing (Ad Hoc recommended for testers):
+#     IOS_TEAM_ID                         # e.g. ABCD123456
+#     IOS_DISTRIBUTION_CERTIFICATE_P12    # base64 of .p12
+#     IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
+#     IOS_PROVISIONING_PROFILE            # base64 of .mobileprovision
+#
+# Optional:
+#     IOS_EXPORT_METHOD                   # default: ad-hoc
+#                                         # (ad-hoc | enterprise | development | app-store)
+#
+# Tester group is fixed to "testers".
+#
+# Encode secrets locally:
+#   base64 -i Certificates.p12 | pbcopy
+#   base64 -i KakaoBank_AdHoc.mobileprovision | pbcopy
+
+name: Firebase App Distribution (iOS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ios_scheme:
+        description: Xcode scheme
+        required: true
+        default: KakaoBankApp
+        type: string
+      export_method:
+        description: IPA export method
+        required: true
+        default: ad-hoc
+        type: choice
+        options:
+          - ad-hoc
+          - enterprise
+          - development
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: firebase-app-distribution-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  IOS_SCHEME: KakaoBankApp
+  IOS_BUNDLE_IDENTIFIER: com.bankx.kakaobankapp
+  IOS_EXPORT_METHOD_DEFAULT: ad-hoc
+
+jobs:
+  ios:
+    name: iOS → Firebase App Distribution
+    runs-on: macos-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: KakaoBankApp
+    env:
+      EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+      EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+      EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+      EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+      EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+      EXPO_PUBLIC_FIREBASE_APP_ID: ${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}
+      EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION: ${{ secrets.EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION }}
+      EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT: ${{ secrets.EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT }}
+      EXPO_PUBLIC_FIRESTORE_SECRET_FIELD: ${{ secrets.EXPO_PUBLIC_FIRESTORE_SECRET_FIELD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: KakaoBankApp/package-lock.json
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Validate secrets
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          FIREBASE_IOS_APP_ID: ${{ secrets.FIREBASE_IOS_APP_ID }}
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+          IOS_DISTRIBUTION_CERTIFICATE_P12: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_P12 }}
+          IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for key in \
+            EXPO_PUBLIC_FIREBASE_API_KEY \
+            EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN \
+            EXPO_PUBLIC_FIREBASE_PROJECT_ID \
+            EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET \
+            EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID \
+            EXPO_PUBLIC_FIREBASE_APP_ID \
+            EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION \
+            EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT \
+            EXPO_PUBLIC_FIRESTORE_SECRET_FIELD \
+            FIREBASE_SERVICE_ACCOUNT_JSON \
+            FIREBASE_IOS_APP_ID \
+            IOS_TEAM_ID \
+            IOS_DISTRIBUTION_CERTIFICATE_P12 \
+            IOS_DISTRIBUTION_CERTIFICATE_PASSWORD \
+            IOS_PROVISIONING_PROFILE
+          do
+            if [ -z "${!key:-}" ]; then
+              echo "::error::Missing GitHub Actions secret: ${key}"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Add the missing secrets under Repository Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          echo "All required secrets are present."
+
+      - name: Write .env from GitHub Secrets
+        run: |
+          set -euo pipefail
+          {
+            echo "EXPO_PUBLIC_FIREBASE_API_KEY=${EXPO_PUBLIC_FIREBASE_API_KEY}"
+            echo "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=${EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN}"
+            echo "EXPO_PUBLIC_FIREBASE_PROJECT_ID=${EXPO_PUBLIC_FIREBASE_PROJECT_ID}"
+            echo "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=${EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET}"
+            echo "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}"
+            echo "EXPO_PUBLIC_FIREBASE_APP_ID=${EXPO_PUBLIC_FIREBASE_APP_ID}"
+            echo "EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION=${EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION}"
+            echo "EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT=${EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT}"
+            echo "EXPO_PUBLIC_FIRESTORE_SECRET_FIELD=${EXPO_PUBLIC_FIRESTORE_SECRET_FIELD}"
+          } > .env
+          echo "Wrote KakaoBankApp/.env ($(wc -l < .env) lines)"
+          cut -d= -f1 .env
+          if ! grep -q '^EXPO_PUBLIC_FIREBASE_API_KEY=.\+' .env; then
+            echo "::error::EXPO_PUBLIC_FIREBASE_API_KEY is empty after writing .env"
+            exit 1
+          fi
+
+      - name: Expo prebuild (iOS)
+        run: |
+          set -euo pipefail
+          npx expo prebuild --platform ios --non-interactive --no-install
+          node -e "
+            const cfg = require('./app.config.js')();
+            if (!cfg.extra?.EXPO_PUBLIC_FIREBASE_API_KEY) {
+              console.error('app.config.js extra is missing EXPO_PUBLIC_FIREBASE_API_KEY');
+              process.exit(1);
+            }
+            console.log('app.config extra contains Firebase keys');
+          "
+          test -d ios
+          ls -la ios
+
+      - name: Install CocoaPods
+        run: |
+          set -euo pipefail
+          cd ios
+          pod install
+
+      - name: Resolve build inputs
+        id: inputs
+        working-directory: ${{ github.workspace }}
+        env:
+          IOS_EXPORT_METHOD_SECRET: ${{ secrets.IOS_EXPORT_METHOD }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "scheme=${{ inputs.ios_scheme }}" >> "$GITHUB_OUTPUT"
+            echo "export_method=${{ inputs.export_method }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "scheme=${{ env.IOS_SCHEME }}" >> "$GITHUB_OUTPUT"
+            METHOD="${IOS_EXPORT_METHOD_SECRET:-${{ env.IOS_EXPORT_METHOD_DEFAULT }}}"
+            echo "export_method=$METHOD" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build signed IPA
+        id: build
+        uses: ./.github/actions/github-actions/ios-ipa-build
+        with:
+          working-directory: KakaoBankApp
+          scheme: ${{ steps.inputs.outputs.scheme }}
+          configuration: Release
+          bundle-identifier: ${{ env.IOS_BUNDLE_IDENTIFIER }}
+          team-id: ${{ secrets.IOS_TEAM_ID }}
+          certificate-p12-base64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_P12 }}
+          certificate-password: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          provisioning-profile-base64: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+          export-method: ${{ steps.inputs.outputs.export_method }}
+          artifact-prefix: kakaobank-ios
+          artifact-retention-days: '14'
+          upload-artifact: 'true'
+
+      - name: Build release notes from recent commits
+        id: notes
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          {
+            echo "Commit:"
+            git log -n 10 --pretty=format:'- %s' --no-merges
+            echo
+          } > /tmp/release-notes.txt
+          echo "notes<<EOF" >> "${GITHUB_OUTPUT}"
+          cat /tmp/release-notes.txt >> "${GITHUB_OUTPUT}"
+          echo "EOF" >> "${GITHUB_OUTPUT}"
+          echo "----- release notes -----"
+          cat /tmp/release-notes.txt
+
+      - name: Upload to Firebase App Distribution
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_IOS_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          groups: testers
+          file: ${{ steps.build.outputs.ipa-path }}
+          releaseNotes: |
+            KakaoBankApp iOS (expo prebuild)
+            ${{ steps.notes.outputs.notes }}
+            Ref: ${{ github.ref_name }}
+
+      - name: Job summary
+        working-directory: ${{ github.workspace }}
+        run: |
+          {
+            echo "## Firebase App Distribution (iOS)"
+            echo ""
+            echo "- Scheme: \`${{ steps.inputs.outputs.scheme }}\`"
+            echo "- Export method: \`${{ steps.inputs.outputs.export_method }}\`"
+            echo "- Artifact name: \`${{ steps.build.outputs.artifact-name }}\`"
+            echo "- Artifact id: \`${{ steps.build.outputs.artifact-id }}\`"
+            echo "- IPA: \`${{ steps.build.outputs.ipa-path }}\`"
+            echo "- Testers group: \`testers\`"
+          } >> "$GITHUB_STEP_SUMMARY"
