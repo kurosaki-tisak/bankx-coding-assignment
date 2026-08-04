@@ -80,8 +80,22 @@ runs:
       run: |
         set -euo pipefail
 
-        CONFIG_JSON="$(npx react-native config)"
-        IOS_SOURCE_DIR="$(printf '%s' "$CONFIG_JSON" | node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync(0,'utf8'));process.stdout.write(j.project?.ios?.sourceDir || 'ios')")"
+        # Expo apps do not install @react-native-community/cli by default
+        # (optional peer of react-native), so `npx react-native config` exits 1.
+        # After `expo prebuild`, the layout is always ios/ — use that fallback.
+        IOS_SOURCE_DIR="ios"
+
+        if CONFIG_JSON="$(npx react-native config 2>/dev/null)"; then
+          IOS_SOURCE_DIR="$(printf '%s' "$CONFIG_JSON" | node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync(0,'utf8'));process.stdout.write(j.project?.ios?.sourceDir || 'ios')")"
+        else
+          echo "react-native config unavailable; using Expo default (ios)"
+        fi
+
+        if [[ ! -d "$IOS_SOURCE_DIR" ]]; then
+          echo "::error::iOS source dir not found: $IOS_SOURCE_DIR (run expo prebuild first)"
+          ls -la
+          exit 1
+        fi
 
         WORKSPACE="$(find "$IOS_SOURCE_DIR" -maxdepth 2 -name '*.xcworkspace' ! -path '*/Pods/*' | head -n1 || true)"
         PROJECT="$(find "$IOS_SOURCE_DIR" -maxdepth 2 -name '*.xcodeproj' ! -path '*/Pods/*' | head -n1 || true)"
@@ -93,7 +107,8 @@ runs:
           CONTAINER_KIND="project"
           CONTAINER_PATH="$PROJECT"
         else
-          echo "Could not find .xcworkspace or .xcodeproj under $IOS_SOURCE_DIR"
+          echo "::error::Could not find .xcworkspace or .xcodeproj under $IOS_SOURCE_DIR"
+          ls -la "$IOS_SOURCE_DIR"
           exit 1
         fi
 
