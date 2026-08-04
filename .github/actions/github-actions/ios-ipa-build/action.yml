@@ -97,8 +97,10 @@ runs:
           exit 1
         fi
 
-        WORKSPACE="$(find "$IOS_SOURCE_DIR" -maxdepth 2 -name '*.xcworkspace' ! -path '*/Pods/*' | head -n1 || true)"
-        PROJECT="$(find "$IOS_SOURCE_DIR" -maxdepth 2 -name '*.xcodeproj' ! -path '*/Pods/*' | head -n1 || true)"
+        # Prefer CocoaPods workspace at ios/*.xcworkspace.
+        # Do NOT pick ios/*.xcodeproj/project.xcworkspace — that skips Pods.
+        WORKSPACE="$(find "$IOS_SOURCE_DIR" -maxdepth 1 -name '*.xcworkspace' | sort | head -n1 || true)"
+        PROJECT="$(find "$IOS_SOURCE_DIR" -maxdepth 1 -name '*.xcodeproj' | sort | head -n1 || true)"
 
         if [[ -n "$WORKSPACE" ]]; then
           CONTAINER_KIND="workspace"

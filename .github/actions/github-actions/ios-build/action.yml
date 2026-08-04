@@ -87,8 +87,11 @@ runs:
         PROJECT="${{ inputs.project-path }}"
 
         if [[ -z "$WORKSPACE" && -z "$PROJECT" ]]; then
-          WORKSPACE="$(find "$IOS_SOURCE_DIR" -maxdepth 2 -name '*.xcworkspace' ! -path '*/Pods/*' | head -n1 || true)"
-          PROJECT="$(find "$IOS_SOURCE_DIR" -maxdepth 2 -name '*.xcodeproj' ! -path '*/Pods/*' | head -n1 || true)"
+          # Prefer CocoaPods workspace at ios/*.xcworkspace.
+          # Do NOT pick ios/*.xcodeproj/project.xcworkspace — that skips Pods
+          # and causes "module map … not found" / "no such module 'Expo'".
+          WORKSPACE="$(find "$IOS_SOURCE_DIR" -maxdepth 1 -name '*.xcworkspace' | sort | head -n1 || true)"
+          PROJECT="$(find "$IOS_SOURCE_DIR" -maxdepth 1 -name '*.xcodeproj' | sort | head -n1 || true)"
         fi
 
         if [[ -n "$WORKSPACE" ]]; then
@@ -130,15 +133,37 @@ runs:
           XCODE_CONTAINER=( -project "${{ steps.resolve.outputs.container_path }}" )
         fi
 
+        # Prefer a concrete iPhone simulator (arm64). generic/platform builds
+        # arm64+x86_64 and can race CocoaPods Expo modulemaps on CI.
+        SIM_ID="$(
+          xcrun simctl list devices available -j | node -e '
+            const data = JSON.parse(require("fs").readFileSync(0, "utf8"));
+            const devices = Object.values(data.devices || {}).flat();
+            const iphone = devices.find((d) =>
+              d.isAvailable !== false && /^iPhone /.test(String(d.name || ""))
+            );
+            if (!iphone) process.exit(1);
+            process.stdout.write(iphone.udid);
+          '
+        )" || SIM_ID=""
+
+        if [[ -n "$SIM_ID" ]]; then
+          DESTINATION="platform=iOS Simulator,id=${SIM_ID}"
+        else
+          DESTINATION="platform=iOS Simulator,arch=arm64"
+        fi
+        echo "Using destination: $DESTINATION"
+
         xcodebuild \
           "${XCODE_CONTAINER[@]}" \
           -scheme "${{ inputs.scheme }}" \
           -configuration "${{ inputs.configuration }}" \
-          -sdk iphonesimulator \
-          -destination "generic/platform=iOS Simulator" \
+          -destination "$DESTINATION" \
           -derivedDataPath "${{ inputs.derived-data-path }}" \
           CODE_SIGNING_ALLOWED=NO \
           COMPILER_INDEX_STORE_ENABLE=NO \
+          ONLY_ACTIVE_ARCH=YES \
+          EXCLUDED_ARCHS=x86_64 \
           build
 
     - name: Package simulator app
