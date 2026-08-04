@@ -1,0 +1,95 @@
+name: Write Firebase native config
+description: >
+  Materialize google-services.json / GoogleService-Info.plist from GitHub
+  Secrets into KakaoBankApp/firebase/. Real files must never be committed.
+
+inputs:
+  working-directory:
+    description: App root that contains firebase/
+    required: false
+    default: '.'
+  google-services-json:
+    description: Full contents of google-services.json (Android)
+    required: false
+    default: ''
+  google-service-info-plist:
+    description: Full contents of GoogleService-Info.plist (iOS)
+    required: false
+    default: ''
+  require-android:
+    description: Fail if google-services.json secret is empty
+    required: false
+    default: 'false'
+  require-ios:
+    description: Fail if GoogleService-Info.plist secret is empty
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Write Firebase native config files
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        GOOGLE_SERVICES_JSON: ${{ inputs.google-services-json }}
+        GOOGLE_SERVICE_INFO_PLIST: ${{ inputs.google-service-info-plist }}
+        REQUIRE_ANDROID: ${{ inputs.require-android }}
+        REQUIRE_IOS: ${{ inputs.require-ios }}
+      run: |
+        set -euo pipefail
+
+        mkdir -p firebase
+        missing=0
+
+        write_secret_file() {
+          local dest="$1"
+          local value="$2"
+          local label="$3"
+          local required="$4"
+
+          if [[ -z "${value}" ]]; then
+            if [[ "$required" == "true" ]]; then
+              echo "::error::Missing GitHub Actions secret for ${label}"
+              missing=1
+            else
+              echo "Skip ${dest} (secret not provided)"
+            fi
+            return 0
+          fi
+
+          # Write without printing secret contents to logs.
+          printf '%s' "$value" > "$dest"
+          # Ensure trailing newline for text formats.
+          if [[ -s "$dest" ]] && [[ "$(tail -c1 "$dest" | wc -l)" -eq 0 ]]; then
+            printf '\n' >> "$dest"
+          fi
+
+          if [[ ! -s "$dest" ]]; then
+            echo "::error::Wrote empty file: ${dest}"
+            missing=1
+            return 0
+          fi
+
+          echo "Wrote ${dest} ($(wc -c < "$dest" | tr -d ' ') bytes)"
+        }
+
+        write_secret_file \
+          "firebase/google-services.json" \
+          "${GOOGLE_SERVICES_JSON}" \
+          "FIREBASE_GOOGLE_SERVICES_JSON" \
+          "${REQUIRE_ANDROID}"
+
+        write_secret_file \
+          "firebase/GoogleService-Info.plist" \
+          "${GOOGLE_SERVICE_INFO_PLIST}" \
+          "FIREBASE_GOOGLE_SERVICE_INFO_PLIST" \
+          "${REQUIRE_IOS}"
+
+        if [[ "$missing" -ne 0 ]]; then
+          echo "Add the missing secrets under Repository Settings → Secrets and variables → Actions."
+          exit 1
+        fi
+
+        echo "Firebase native config ready under firebase/"
+        ls -la firebase

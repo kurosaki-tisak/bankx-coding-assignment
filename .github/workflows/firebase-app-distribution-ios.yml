@@ -15,6 +15,9 @@
 #     EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT
 #     EXPO_PUBLIC_FIRESTORE_SECRET_FIELD
 #
+#   Firebase native configs (full file contents — never commit real files):
+#     FIREBASE_GOOGLE_SERVICE_INFO_PLIST
+#
 #   Firebase App Distribution:
 #     FIREBASE_SERVICE_ACCOUNT_JSON
 #     FIREBASE_IOS_APP_ID
@@ -165,6 +168,13 @@ jobs:
             echo "::error::EXPO_PUBLIC_FIREBASE_API_KEY is empty after writing .env"
             exit 1
           fi
+
+      - name: Write Firebase native config
+        uses: ./.github/actions/github-actions/write-firebase-native-config
+        with:
+          working-directory: KakaoBankApp
+          google-service-info-plist: ${{ secrets.FIREBASE_GOOGLE_SERVICE_INFO_PLIST }}
+          require-ios: 'true'
 
       - name: Expo prebuild (iOS)
         run: |

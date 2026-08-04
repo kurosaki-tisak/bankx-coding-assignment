@@ -22,6 +22,9 @@
 #   (in code, not secrets): ACCOUNTS_PER_PAGE, USER_DISPLAY_NAME
 #     → src/features/accounts/data/models/accountConfig.ts
 #
+#   Firebase native configs (full file contents — never commit real files):
+#     FIREBASE_GOOGLE_SERVICES_JSON
+#
 #   Firebase App Distribution:
 #     FIREBASE_SERVICE_ACCOUNT_JSON
 #     FIREBASE_ANDROID_APP_ID
@@ -135,6 +138,13 @@ jobs:
             echo "::error::EXPO_PUBLIC_FIREBASE_API_KEY is empty after writing .env"
             exit 1
           fi
+
+      - name: Write Firebase native config
+        uses: ./.github/actions/github-actions/write-firebase-native-config
+        with:
+          working-directory: KakaoBankApp
+          google-services-json: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
+          require-android: 'true'
 
       - name: Expo prebuild (Android)
         run: |

@@ -11,6 +11,7 @@
 #   EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION
 #   EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT
 #   EXPO_PUBLIC_FIRESTORE_SECRET_FIELD
+#   FIREBASE_GOOGLE_SERVICES_JSON   (full google-services.json — never commit)
 #
 # Download after a run:
 #   gh run list --workflow "Android Emulator Build" --limit 5
@@ -143,6 +144,13 @@ jobs:
             echo "::error::EXPO_PUBLIC_FIREBASE_API_KEY is empty after writing .env"
             exit 1
           fi
+
+      - name: Write Firebase native config
+        uses: ./.github/actions/github-actions/write-firebase-native-config
+        with:
+          working-directory: KakaoBankApp
+          google-services-json: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
+          require-android: 'true'
 
       - name: Expo prebuild (Android)
         run: |
