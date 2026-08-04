@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, AppState, type AppStateStatus } from 'react-native';
+import { AppState, type AppStateStatus } from 'react-native';
 
 import type { Account } from '../../data/models/account';
 import { ACCOUNTS_PER_PAGE } from '../../data/models/accountConfig';
@@ -42,9 +42,17 @@ function sameId(a: string | number, b: string | number): boolean {
   return String(a) === String(b);
 }
 
+type FeaturedSnapshot = {
+  favoriteAccount: Account | null;
+  topBalanceAccounts: Account[];
+};
+
 /**
  * Accounts ViewModel — favourite + top balances + View All pagination
  * + biometric-gated reveal of featured account numbers.
+ *
+ * On fetch errors, previous account data is preserved so the UI does not
+ * wipe the favourite card or lose the retry affordance mid-failure.
  */
 export function useAccountViewModel(): UseAccountViewModelResult {
   const perPage = ACCOUNTS_PER_PAGE;
@@ -59,7 +67,6 @@ export function useAccountViewModel(): UseAccountViewModelResult {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** Account ids whose featured account numbers are currently revealed. */
   const [revealedAccountNumberIds, setRevealedAccountNumberIds] = useState<
     ReadonlySet<string>
   >(() => new Set());
@@ -70,6 +77,11 @@ export function useAccountViewModel(): UseAccountViewModelResult {
   const isFetchingRef = useRef(false);
   const hasMoreRef = useRef(true);
   const pageRef = useRef(1);
+  const favoriteAccountRef = useRef<Account | null>(null);
+
+  useEffect(() => {
+    favoriteAccountRef.current = favoriteAccount;
+  }, [favoriteAccount]);
 
   const hideAllFeaturedAccountNumbers = useCallback(() => {
     setRevealedAccountNumberIds(new Set());
@@ -91,37 +103,58 @@ export function useAccountViewModel(): UseAccountViewModelResult {
     async (
       favoriteId: string | null,
       pool: Account[],
+      previousFavorite: Account | null,
     ): Promise<Account | null> => {
       if (!favoriteId) {
         return null;
       }
+
       const fromPool = pool.find((item) => sameId(item.id, favoriteId));
       if (fromPool) {
         return fromPool;
       }
+
+      if (previousFavorite && sameId(previousFavorite.id, favoriteId)) {
+        try {
+          return (await fetchDecryptedAccountById(favoriteId)) ?? previousFavorite;
+        } catch {
+          // Keep last known favourite when by-id fetch fails.
+          return previousFavorite;
+        }
+      }
+
       try {
         return await fetchDecryptedAccountById(favoriteId);
       } catch {
-        return null;
+        return previousFavorite;
       }
     },
     [],
   );
 
-  const loadFeatured = useCallback(
-    async (favoriteId: string | null) => {
+  /** Pure fetch — does not mutate React state (commit only on success). */
+  const fetchFeaturedSnapshot = useCallback(
+    async (
+      favoriteId: string | null,
+      previousFavorite: Account | null,
+    ): Promise<FeaturedSnapshot> => {
       const topPool = await fetchDecryptedTopAccountsByBalance(5);
-      const favorite = await resolveFavoriteAccount(favoriteId, topPool);
+      const favorite = await resolveFavoriteAccount(
+        favoriteId,
+        topPool,
+        previousFavorite,
+      );
 
       const topExcludingFavorite = topPool
         .filter((item) => (favorite ? !sameId(item.id, favorite.id) : true))
         .slice(0, 2);
 
-      setFavoriteAccount(favorite);
-      setTopBalanceAccounts(topExcludingFavorite);
-      hideAllFeaturedAccountNumbers();
+      return {
+        favoriteAccount: favorite,
+        topBalanceAccounts: topExcludingFavorite,
+      };
     },
-    [hideAllFeaturedAccountNumbers, resolveFavoriteAccount],
+    [resolveFavoriteAccount],
   );
 
   const loadPage = useCallback(
@@ -134,7 +167,6 @@ export function useAccountViewModel(): UseAccountViewModelResult {
       }
 
       isFetchingRef.current = true;
-      setError(null);
 
       if (mode === 'initial') {
         setIsLoading(true);
@@ -145,36 +177,44 @@ export function useAccountViewModel(): UseAccountViewModelResult {
       }
 
       try {
+        let nextFavoriteId: string | null = null;
+        let featured: FeaturedSnapshot | null = null;
+
         if (mode === 'initial' || mode === 'refresh') {
-          const favoriteId = await getFavoriteAccountId();
-          setFavoriteIdState(favoriteId);
-          await loadFeatured(favoriteId);
+          nextFavoriteId = await getFavoriteAccountId();
+          featured = await fetchFeaturedSnapshot(
+            nextFavoriteId,
+            favoriteAccountRef.current,
+          );
         }
 
         const { accounts: pageAccounts, totalCount } =
           await fetchDecryptedAccountsPage(targetPage, perPage);
-
-        setViewAllAccounts((prev) =>
-          mode === 'more' ? [...prev, ...pageAccounts] : pageAccounts,
-        );
 
         const nextHasMore =
           totalCount !== null
             ? targetPage * perPage < totalCount
             : pageAccounts.length >= perPage;
 
+        // Commit only after the full load succeeds — keeps prior UI on failure.
+        if (featured) {
+          setFavoriteIdState(nextFavoriteId);
+          setFavoriteAccount(featured.favoriteAccount);
+          setTopBalanceAccounts(featured.topBalanceAccounts);
+          hideAllFeaturedAccountNumbers();
+        }
+
+        setViewAllAccounts((prev) =>
+          mode === 'more' ? [...prev, ...pageAccounts] : pageAccounts,
+        );
         hasMoreRef.current = nextHasMore;
         setHasMore(nextHasMore);
         pageRef.current = targetPage;
         setPage(targetPage);
+        setError(null);
       } catch (err) {
         const message =
           err instanceof Error ? err.message : 'Unable to load accounts';
-
-        if (err instanceof Error && /decrypt/i.test(err.message)) {
-          Alert.alert('Decryption Error', message);
-        }
-
         setError(message);
       } finally {
         isFetchingRef.current = false;
@@ -183,7 +223,7 @@ export function useAccountViewModel(): UseAccountViewModelResult {
         setIsLoadingMore(false);
       }
     },
-    [loadFeatured, perPage],
+    [fetchFeaturedSnapshot, hideAllFeaturedAccountNumbers, perPage],
   );
 
   useEffect(() => {
@@ -210,31 +250,41 @@ export function useAccountViewModel(): UseAccountViewModelResult {
 
   const toggleFavorite = useCallback(
     async (account: Account) => {
+      const previousFavorite = favoriteAccountRef.current;
+      const previousFavoriteId = favoriteAccountId;
+      const previousTop = topBalanceAccounts;
+
       try {
         const currentlyFavorite = isFavorite(account.id);
         const nextId = currentlyFavorite ? null : String(account.id);
+
+        const featured = await fetchFeaturedSnapshot(
+          nextId,
+          nextId ? account : null,
+        );
+
         await setFavoriteAccountId(nextId);
         setFavoriteIdState(nextId);
-
-        if (nextId === null) {
-          setFavoriteAccount(null);
-        } else {
-          setFavoriteAccount(account);
-        }
-
-        const topPool = await fetchDecryptedTopAccountsByBalance(5);
-        const topExcludingFavorite = topPool
-          .filter((item) => (nextId ? !sameId(item.id, nextId) : true))
-          .slice(0, 2);
-        setTopBalanceAccounts(topExcludingFavorite);
+        setFavoriteAccount(featured.favoriteAccount);
+        setTopBalanceAccounts(featured.topBalanceAccounts);
         hideAllFeaturedAccountNumbers();
+        setError(null);
       } catch (err) {
+        setFavoriteIdState(previousFavoriteId);
+        setFavoriteAccount(previousFavorite);
+        setTopBalanceAccounts(previousTop);
         const message =
           err instanceof Error ? err.message : 'บันทึกบัญชีโปรดไม่สำเร็จ';
-        Alert.alert('เกิดข้อผิดพลาด', message);
+        setError(message);
       }
     },
-    [hideAllFeaturedAccountNumbers, isFavorite],
+    [
+      favoriteAccountId,
+      fetchFeaturedSnapshot,
+      hideAllFeaturedAccountNumbers,
+      isFavorite,
+      topBalanceAccounts,
+    ],
   );
 
   const isFeaturedAccountNumberRevealed = useCallback(
@@ -288,22 +338,7 @@ export function useAccountViewModel(): UseAccountViewModelResult {
             next.add(accountId);
             return next;
           });
-          return;
         }
-
-        if (result.reason === 'cancelled') {
-          return;
-        }
-
-        if (result.reason === 'unavailable') {
-          Alert.alert(
-            'ไม่สามารถยืนยันตัวตนได้',
-            'อุปกรณ์นี้ยังไม่ได้ตั้งค่า Face ID / Touch ID / ลายนิ้วมือ',
-          );
-          return;
-        }
-
-        Alert.alert('ยืนยันตัวตนไม่สำเร็จ', 'กรุณาลองอีกครั้ง');
       } finally {
         setPendingBiometricAccountId(null);
       }

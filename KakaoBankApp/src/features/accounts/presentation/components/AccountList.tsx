@@ -51,8 +51,6 @@ type ListHeaderProps = {
   userName: string;
   favoriteAccount: Account | null;
   topBalanceAccounts: Account[];
-  error?: string | null;
-  onRetry?: () => void;
   onAccountPress?: (account: Account) => void;
   onTransferPress?: (account: Account) => void;
   onToggleFavorite?: (account: Account) => void;
@@ -62,12 +60,34 @@ type ListHeaderProps = {
   onToggleFeaturedAccountNumberVisibility?: (account: Account) => void;
 };
 
+function ErrorBanner({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <View style={styles.errorBanner}>
+      <Text style={styles.errorTitle}>เกิดข้อผิดพลาดชั่วคราว</Text>
+      <Text style={styles.errorText}>{message}</Text>
+      {onRetry ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onRetry}
+          style={({ pressed }) => [styles.retryButton, pressed && styles.pressed]}
+        >
+          <Text style={styles.retryButtonText}>ลองอีกครั้ง</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 const ListHeader = memo(function ListHeader({
   userName,
   favoriteAccount,
   topBalanceAccounts,
-  error,
-  onRetry,
   onAccountPress,
   onTransferPress,
   onToggleFavorite,
@@ -104,25 +124,6 @@ const ListHeader = memo(function ListHeader({
           <View style={styles.bellDot} />
         </Pressable>
       </View>
-
-      {error ? (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorTitle}>เกิดข้อผิดพลาดชั่วคราว</Text>
-          <Text style={styles.errorText}>{error}</Text>
-          {onRetry ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={onRetry}
-              style={({ pressed }) => [
-                styles.retryButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={styles.retryButtonText}>ลองอีกครั้ง</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      ) : null}
 
       {favoriteAccount ? (
         <FeaturedAccountCard
@@ -260,8 +261,6 @@ export function AccountList({
       userName={userName}
       favoriteAccount={favoriteAccount}
       topBalanceAccounts={topBalanceAccounts}
-      error={error}
-      onRetry={onRetry}
       onAccountPress={onAccountPress}
       onTransferPress={onTransferPress}
       onToggleFavorite={onToggleFavorite}
@@ -274,7 +273,8 @@ export function AccountList({
     />
   );
 
-  if (isLoading && viewAllAccounts.length === 0) {
+  // Keep error + retry visible even while a first load is retrying.
+  if (isLoading && viewAllAccounts.length === 0 && !error) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <View style={styles.skeletonContainer}>
@@ -293,10 +293,16 @@ export function AccountList({
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      {error ? (
+        <View style={styles.errorBannerWrap}>
+          <ErrorBanner message={error} onRetry={onRetry} />
+        </View>
+      ) : null}
       <FlatList
         style={styles.list}
         contentContainerStyle={styles.listContent}
         data={viewAllAccounts}
+        extraData={{ error, favoriteAccount, topBalanceAccounts }}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         ListHeaderComponent={listHeader}
@@ -304,20 +310,10 @@ export function AccountList({
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>ยังไม่มีบัญชีให้แสดง</Text>
             <Text style={styles.emptySubtitle}>
-              ดึงลงเพื่อรีเฟรชข้อมูลอีกครั้ง
+              {error
+                ? 'กดปุ่มลองอีกครั้งด้านบนเพื่อโหลดข้อมูลใหม่'
+                : 'ดึงลงเพื่อรีเฟรชข้อมูลอีกครั้ง'}
             </Text>
-            {onRetry ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={onRetry}
-                style={({ pressed }) => [
-                  styles.retryButton,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={styles.retryButtonText}>โหลดอีกครั้ง</Text>
-              </Pressable>
-            ) : null}
           </View>
         }
         ListFooterComponent={
@@ -470,6 +466,10 @@ const styles = StyleSheet.create({
   viewAllRowWrap: {
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.sm,
+  },
+  errorBannerWrap: {
+    paddingHorizontal: layout.screenPaddingX,
+    paddingTop: spacing.sm,
   },
   errorBanner: {
     backgroundColor: colors.surface,
