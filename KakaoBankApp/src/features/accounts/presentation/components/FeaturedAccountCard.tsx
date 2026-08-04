@@ -153,7 +153,7 @@ export const FeaturedAccountCard = memo(function FeaturedAccountCard({
               accessibilityLabel={
                 areAccountNumbersRevealed
                   ? 'ซ่อนเลขบัญชี'
-                  : 'ยืนยันชีวมิติเพื่อดูเลขบัญชี'
+                  : 'ยืนยันตัวตนเพื่อดูเลขบัญชี'
               }
               disabled={isBiometricPromptPending}
               hitSlop={spacing.xs}

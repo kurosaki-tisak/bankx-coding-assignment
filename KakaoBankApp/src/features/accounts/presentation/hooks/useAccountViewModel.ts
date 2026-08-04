@@ -345,7 +345,7 @@ export function useAccountViewModel(): UseAccountViewModelResult {
       setPendingBiometricAccountId(accountId);
       try {
         const result = await authenticateWithBiometrics(
-          'ยืนยันตัวตนด้วยชีวมิติเพื่อดูเลขบัญชี',
+          'ยืนยันตัวตนเพื่อดูเลขบัญชี',
         );
 
         if (result.success) {
