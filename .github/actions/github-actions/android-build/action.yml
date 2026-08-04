@@ -50,9 +50,33 @@ runs:
       run: |
         set -euo pipefail
 
+        if [[ ! -d android ]]; then
+          echo "::error::android/ is missing. Run expo prebuild before this action."
+          exit 1
+        fi
+
+        if [[ ! -f .env ]]; then
+          echo "::error::.env is missing in ${{ inputs.working-directory }}."
+          echo "Run setup-expo-env first so EXPO_PUBLIC_* values are available to Metro/Gradle."
+          exit 1
+        fi
+
+        if ! grep -q '^EXPO_PUBLIC_FIREBASE_API_KEY=.\+' .env; then
+          echo "::error::EXPO_PUBLIC_FIREBASE_API_KEY is empty in .env"
+          echo "Check Repository secrets EXPO_PUBLIC_* — empty secrets produce an empty .env and break the JS bundle step."
+          exit 1
+        fi
+
         CONFIG_JSON="$(npx react-native config)"
         ANDROID_SOURCE_DIR="$(printf '%s' "$CONFIG_JSON" | node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync(0,'utf8'));process.stdout.write(j.project?.android?.sourceDir || 'android')")"
         APP_NAME="$(printf '%s' "$CONFIG_JSON" | node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync(0,'utf8'));process.stdout.write(j.project?.android?.appName || 'app')")"
+
+        # Normalize absolute sourceDir to a path relative to the app root.
+        case "$ANDROID_SOURCE_DIR" in
+          /*)
+            ANDROID_SOURCE_DIR="$(node -e 'const path=require("path"); process.stdout.write(path.relative(process.cwd(), process.argv[1]) || ".")' "$ANDROID_SOURCE_DIR")"
+            ;;
+        esac
 
         IDENTIFIER="${{ inputs.custom-identifier }}"
         if [[ -z "$IDENTIFIER" ]]; then
@@ -67,6 +91,7 @@ runs:
         echo "app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
         echo "identifier=$IDENTIFIER" >> "$GITHUB_OUTPUT"
         echo "Resolved Android: sourceDir=$ANDROID_SOURCE_DIR appName=$APP_NAME"
+        echo ".env keys present: $(cut -d= -f1 .env | tr '\n' ' ')"
 
     - name: Build Android APK
       id: build
@@ -75,8 +100,40 @@ runs:
       env:
         GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8'
         JAVA_OPTS: '-Xmx4g -XX:MaxMetaspaceSize=1024m'
+        # Ensure Metro / Expo embed EXPO_PUBLIC_* even if step env was narrowed.
+        EXPO_PUBLIC_FIREBASE_API_KEY: ${{ env.EXPO_PUBLIC_FIREBASE_API_KEY }}
+        EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+        EXPO_PUBLIC_FIREBASE_PROJECT_ID: ${{ env.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}
+        EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+        EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+        EXPO_PUBLIC_FIREBASE_APP_ID: ${{ env.EXPO_PUBLIC_FIREBASE_APP_ID }}
+        EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION: ${{ env.EXPO_PUBLIC_FIRESTORE_SECRET_COLLECTION }}
+        EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT: ${{ env.EXPO_PUBLIC_FIRESTORE_SECRET_DOCUMENT }}
+        EXPO_PUBLIC_FIRESTORE_SECRET_FIELD: ${{ env.EXPO_PUBLIC_FIRESTORE_SECRET_FIELD }}
       run: |
         set -euo pipefail
+
+        # Load .env into this shell for the Gradle → Metro bundler child process.
+        eval "$(
+          node <<'NODE'
+          const fs = require('fs');
+          for (const line of fs.readFileSync('.env', 'utf8').split(/\r?\n/)) {
+            if (!line || line.startsWith('#')) continue;
+            const i = line.indexOf('=');
+            if (i <= 0) continue;
+            const key = line.slice(0, i);
+            const value = line.slice(i + 1);
+            if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
+            process.stdout.write(`export ${key}=${JSON.stringify(value)}\n`);
+          }
+          NODE
+        )"
+
+        if [[ -z "${EXPO_PUBLIC_FIREBASE_API_KEY:-}" ]]; then
+          echo "::error::EXPO_PUBLIC_FIREBASE_API_KEY is empty in the build environment."
+          echo "Configure repository secrets EXPO_PUBLIC_* then re-run the workflow."
+          exit 1
+        fi
 
         VARIANT="${{ inputs.variant }}"
         VARIANT_LOWER="$(echo "$VARIANT" | tr '[:upper:]' '[:lower:]')"
@@ -84,7 +141,15 @@ runs:
         ANDROID_DIR="${{ steps.resolve.outputs.android_source_dir }}"
         APP_NAME="${{ steps.resolve.outputs.app_name }}"
 
-        chmod +x "$ANDROID_DIR/gradlew"
+        if [[ ! -x "$ANDROID_DIR/gradlew" ]]; then
+          chmod +x "$ANDROID_DIR/gradlew"
+        fi
+
+        # Ensure SDK path for Gradle (setup-android sets ANDROID_HOME).
+        if [[ -n "${ANDROID_HOME:-}" && ! -f "$ANDROID_DIR/local.properties" ]]; then
+          echo "sdk.dir=${ANDROID_HOME}" > "$ANDROID_DIR/local.properties"
+          echo "Wrote $ANDROID_DIR/local.properties"
+        fi
 
         GRADLE_EXTRA=()
         # Android Lint can crash on generated RN entry points during Release.
@@ -95,6 +160,7 @@ runs:
           )
         fi
 
+        echo "Running: ./gradlew :${APP_NAME}:${GRADLE_TASK}"
         (
           cd "$ANDROID_DIR"
           ./gradlew ":${APP_NAME}:${GRADLE_TASK}" --no-daemon "${GRADLE_EXTRA[@]}"
@@ -117,7 +183,6 @@ runs:
           exit 1
         fi
 
-        # Absolute path for upload-artifact (resolves from GITHUB_WORKSPACE)
         APK_ABS="$(cd "$(dirname "$APK_REL")" && pwd)/$(basename "$APK_REL")"
         echo "apk_path=$APK_ABS" >> "$GITHUB_OUTPUT"
         echo "Found APK: $APK_ABS"
