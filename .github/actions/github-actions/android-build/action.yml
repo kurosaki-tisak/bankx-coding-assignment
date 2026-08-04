@@ -1,0 +1,144 @@
+name: React Native Android Emulator Build
+description: Build React Native Android APK in GitHub Actions and upload artifact
+
+inputs:
+  working-directory:
+    description: Project root (contains android/ after prebuild)
+    required: false
+    default: '.'
+  variant:
+    description: Build variant (Debug for emulator; Release for distribution)
+    required: false
+    default: Debug
+  artifact-prefix:
+    description: Prefix for artifact naming
+    required: false
+    default: rn-android-emulator
+  custom-identifier:
+    description: Optional stable identifier (PR number, channel, etc.)
+    required: false
+  artifact-retention-days:
+    description: GitHub artifact retention
+    required: false
+    default: '7'
+  upload-artifact:
+    description: Whether to upload the APK as a GitHub Actions artifact
+    required: false
+    default: 'true'
+
+outputs:
+  artifact-name:
+    description: Uploaded artifact name
+    value: ${{ steps.names.outputs.artifact_name }}
+  artifact-id:
+    description: Uploaded artifact id
+    value: ${{ steps.upload.outputs.artifact-id }}
+  artifact-url:
+    description: Uploaded artifact URL
+    value: ${{ steps.upload.outputs.artifact-url }}
+  apk-path:
+    description: Absolute path to the built APK
+    value: ${{ steps.build.outputs.apk_path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve Android project settings
+      id: resolve
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        set -euo pipefail
+
+        CONFIG_JSON="$(npx react-native config)"
+        ANDROID_SOURCE_DIR="$(printf '%s' "$CONFIG_JSON" | node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync(0,'utf8'));process.stdout.write(j.project?.android?.sourceDir || 'android')")"
+        APP_NAME="$(printf '%s' "$CONFIG_JSON" | node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync(0,'utf8'));process.stdout.write(j.project?.android?.appName || 'app')")"
+
+        IDENTIFIER="${{ inputs.custom-identifier }}"
+        if [[ -z "$IDENTIFIER" ]]; then
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            IDENTIFIER="pr-${{ github.event.pull_request.number }}"
+          else
+            IDENTIFIER="${GITHUB_SHA::7}"
+          fi
+        fi
+
+        echo "android_source_dir=$ANDROID_SOURCE_DIR" >> "$GITHUB_OUTPUT"
+        echo "app_name=$APP_NAME" >> "$GITHUB_OUTPUT"
+        echo "identifier=$IDENTIFIER" >> "$GITHUB_OUTPUT"
+        echo "Resolved Android: sourceDir=$ANDROID_SOURCE_DIR appName=$APP_NAME"
+
+    - name: Build Android APK
+      id: build
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8'
+        JAVA_OPTS: '-Xmx4g -XX:MaxMetaspaceSize=1024m'
+      run: |
+        set -euo pipefail
+
+        VARIANT="${{ inputs.variant }}"
+        VARIANT_LOWER="$(echo "$VARIANT" | tr '[:upper:]' '[:lower:]')"
+        GRADLE_TASK="assemble${VARIANT}"
+        ANDROID_DIR="${{ steps.resolve.outputs.android_source_dir }}"
+        APP_NAME="${{ steps.resolve.outputs.app_name }}"
+
+        chmod +x "$ANDROID_DIR/gradlew"
+
+        GRADLE_EXTRA=()
+        # Android Lint can crash on generated RN entry points during Release.
+        if [[ "$VARIANT" == "Release" ]]; then
+          GRADLE_EXTRA+=(
+            -x lintVitalAnalyzeRelease
+            -x lintVitalReportRelease
+          )
+        fi
+
+        (
+          cd "$ANDROID_DIR"
+          ./gradlew ":${APP_NAME}:${GRADLE_TASK}" --no-daemon "${GRADLE_EXTRA[@]}"
+        )
+
+        OUTPUT_ROOT="$ANDROID_DIR/${APP_NAME}/build/outputs/apk"
+        SEARCH_DIR="$OUTPUT_ROOT"
+        if [[ -d "$OUTPUT_ROOT/$VARIANT_LOWER" ]]; then
+          SEARCH_DIR="$OUTPUT_ROOT/$VARIANT_LOWER"
+        fi
+
+        APK_REL="$(find "$SEARCH_DIR" -type f -name '*.apk' ! -name '*androidTest*' | sort | head -n1 || true)"
+        if [[ -z "$APK_REL" ]]; then
+          APK_REL="$(find "$OUTPUT_ROOT" -type f -name '*.apk' ! -name '*androidTest*' | sort | head -n1 || true)"
+        fi
+
+        if [[ -z "$APK_REL" ]]; then
+          echo "No Android APK found under $OUTPUT_ROOT"
+          find "$OUTPUT_ROOT" -type f || true
+          exit 1
+        fi
+
+        # Absolute path for upload-artifact (resolves from GITHUB_WORKSPACE)
+        APK_ABS="$(cd "$(dirname "$APK_REL")" && pwd)/$(basename "$APK_REL")"
+        echo "apk_path=$APK_ABS" >> "$GITHUB_OUTPUT"
+        echo "Found APK: $APK_ABS"
+        ls -lh "$APK_ABS"
+
+    - name: Build artifact name
+      id: names
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        VARIANT="$(echo "${{ inputs.variant }}" | tr '[:upper:]' '[:lower:]')"
+        NAME="${{ inputs.artifact-prefix }}-${VARIANT}-${{ steps.resolve.outputs.identifier }}"
+        echo "artifact_name=$NAME" >> "$GITHUB_OUTPUT"
+
+    - name: Upload artifact
+      id: upload
+      if: ${{ inputs.upload-artifact == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.names.outputs.artifact_name }}
+        path: ${{ steps.build.outputs.apk_path }}
+        if-no-files-found: error
+        retention-days: ${{ inputs.artifact-retention-days }}
