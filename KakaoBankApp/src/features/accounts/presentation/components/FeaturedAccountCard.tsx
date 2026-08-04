@@ -132,7 +132,10 @@ export const FeaturedAccountCard = memo(function FeaturedAccountCard({
                   isFavorite ? 'นำออกจากบัญชีโปรด' : 'ตั้งเป็นบัญชีโปรด'
                 }
                 hitSlop={spacing.sm}
-                onPress={() => onToggleFavorite?.(account)}
+                onPress={(event) => {
+                  event.stopPropagation?.();
+                  onToggleFavorite?.(account);
+                }}
                 style={({ pressed }) => pressed && styles.pressed}
               >
                 <MaterialIcons

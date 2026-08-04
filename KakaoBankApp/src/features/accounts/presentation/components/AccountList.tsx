@@ -51,6 +51,8 @@ type ListHeaderProps = {
   userName: string;
   favoriteAccount: Account | null;
   topBalanceAccounts: Account[];
+  error?: string | null;
+  onRetry?: () => void;
   onAccountPress?: (account: Account) => void;
   onTransferPress?: (account: Account) => void;
   onToggleFavorite?: (account: Account) => void;
@@ -88,6 +90,8 @@ const ListHeader = memo(function ListHeader({
   userName,
   favoriteAccount,
   topBalanceAccounts,
+  error,
+  onRetry,
   onAccountPress,
   onTransferPress,
   onToggleFavorite,
@@ -124,6 +128,8 @@ const ListHeader = memo(function ListHeader({
           <View style={styles.bellDot} />
         </Pressable>
       </View>
+
+      {error ? <ErrorBanner message={error} onRetry={onRetry} /> : null}
 
       {favoriteAccount ? (
         <FeaturedAccountCard
@@ -256,21 +262,39 @@ export function AccountList({
 
   const keyExtractor = useCallback((item: Account) => String(item.id), []);
 
-  const listHeader = (
-    <ListHeader
-      userName={userName}
-      favoriteAccount={favoriteAccount}
-      topBalanceAccounts={topBalanceAccounts}
-      onAccountPress={onAccountPress}
-      onTransferPress={onTransferPress}
-      onToggleFavorite={onToggleFavorite}
-      getFeaturedAccountNumberLabel={getFeaturedAccountNumberLabel}
-      isFeaturedAccountNumberRevealed={isFeaturedAccountNumberRevealed}
-      isBiometricPromptPendingFor={isBiometricPromptPendingFor}
-      onToggleFeaturedAccountNumberVisibility={
-        onToggleFeaturedAccountNumberVisibility
-      }
-    />
+  const renderListHeader = useCallback(
+    () => (
+      <ListHeader
+        userName={userName}
+        favoriteAccount={favoriteAccount}
+        topBalanceAccounts={topBalanceAccounts}
+        error={error}
+        onRetry={onRetry}
+        onAccountPress={onAccountPress}
+        onTransferPress={onTransferPress}
+        onToggleFavorite={onToggleFavorite}
+        getFeaturedAccountNumberLabel={getFeaturedAccountNumberLabel}
+        isFeaturedAccountNumberRevealed={isFeaturedAccountNumberRevealed}
+        isBiometricPromptPendingFor={isBiometricPromptPendingFor}
+        onToggleFeaturedAccountNumberVisibility={
+          onToggleFeaturedAccountNumberVisibility
+        }
+      />
+    ),
+    [
+      userName,
+      favoriteAccount,
+      topBalanceAccounts,
+      error,
+      onRetry,
+      onAccountPress,
+      onTransferPress,
+      onToggleFavorite,
+      getFeaturedAccountNumberLabel,
+      isFeaturedAccountNumberRevealed,
+      isBiometricPromptPendingFor,
+      onToggleFeaturedAccountNumberVisibility,
+    ],
   );
 
   // Keep error + retry visible even while a first load is retrying.
@@ -293,19 +317,19 @@ export function AccountList({
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      {error ? (
-        <View style={styles.errorBannerWrap}>
-          <ErrorBanner message={error} onRetry={onRetry} />
-        </View>
-      ) : null}
       <FlatList
         style={styles.list}
         contentContainerStyle={styles.listContent}
         data={viewAllAccounts}
-        extraData={{ error, favoriteAccount, topBalanceAccounts }}
+        extraData={{
+          error,
+          favoriteAccount,
+          topBalanceAccounts,
+          isFavorite,
+        }}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
-        ListHeaderComponent={listHeader}
+        ListHeaderComponent={renderListHeader}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>ยังไม่มีบัญชีให้แสดง</Text>
@@ -332,7 +356,7 @@ export function AccountList({
         initialNumToRender={10}
         maxToRenderPerBatch={10}
         windowSize={7}
-        removeClippedSubviews
+        removeClippedSubviews={false}
         showsVerticalScrollIndicator={false}
       />
     </SafeAreaView>
@@ -466,10 +490,6 @@ const styles = StyleSheet.create({
   viewAllRowWrap: {
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.sm,
-  },
-  errorBannerWrap: {
-    paddingHorizontal: layout.screenPaddingX,
-    paddingTop: spacing.sm,
   },
   errorBanner: {
     backgroundColor: colors.surface,

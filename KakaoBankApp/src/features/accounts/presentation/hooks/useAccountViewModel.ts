@@ -250,40 +250,56 @@ export function useAccountViewModel(): UseAccountViewModelResult {
 
   const toggleFavorite = useCallback(
     async (account: Account) => {
-      const previousFavorite = favoriteAccountRef.current;
-      const previousFavoriteId = favoriteAccountId;
-      const previousTop = topBalanceAccounts;
+      const currentlyFavorite = isFavorite(account.id);
+      const nextId = currentlyFavorite ? null : String(account.id);
 
       try {
-        const currentlyFavorite = isFavorite(account.id);
-        const nextId = currentlyFavorite ? null : String(account.id);
-
-        const featured = await fetchFeaturedSnapshot(
-          nextId,
-          nextId ? account : null,
-        );
-
         await setFavoriteAccountId(nextId);
-        setFavoriteIdState(nextId);
-        setFavoriteAccount(featured.favoriteAccount);
-        setTopBalanceAccounts(featured.topBalanceAccounts);
-        hideAllFeaturedAccountNumbers();
-        setError(null);
       } catch (err) {
-        setFavoriteIdState(previousFavoriteId);
-        setFavoriteAccount(previousFavorite);
-        setTopBalanceAccounts(previousTop);
         const message =
           err instanceof Error ? err.message : 'บันทึกบัญชีโปรดไม่สำเร็จ';
         setError(message);
+        return;
       }
+
+      // Apply favourite locally first so the star always responds,
+      // even when a previous load error left the API unavailable.
+      setFavoriteIdState(nextId);
+      setFavoriteAccount(nextId ? account : null);
+      setTopBalanceAccounts((prev) => {
+        const pool = new Map<string, Account>();
+        for (const item of [
+          ...prev,
+          ...(favoriteAccountRef.current ? [favoriteAccountRef.current] : []),
+          ...viewAllAccounts,
+          account,
+        ]) {
+          if (nextId && sameId(item.id, nextId)) {
+            continue;
+          }
+          pool.set(String(item.id), item);
+        }
+        return [...pool.values()]
+          .sort((a, b) => b.balance - a.balance)
+          .slice(0, 2);
+      });
+      hideAllFeaturedAccountNumbers();
+
+      // Best-effort sync of featured cards; ignore network failures.
+      void fetchFeaturedSnapshot(nextId, nextId ? account : null)
+        .then((featured) => {
+          setFavoriteAccount(featured.favoriteAccount);
+          setTopBalanceAccounts(featured.topBalanceAccounts);
+        })
+        .catch(() => {
+          // Keep the optimistic favourite / top-balance state.
+        });
     },
     [
-      favoriteAccountId,
       fetchFeaturedSnapshot,
       hideAllFeaturedAccountNumbers,
       isFavorite,
-      topBalanceAccounts,
+      viewAllAccounts,
     ],
   );
 
